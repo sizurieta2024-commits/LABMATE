@@ -1,6 +1,6 @@
 // OpenAlex: open index of scholarly works (https://openalex.org).
 // Calls go through our server (/api/openalex), which holds the OpenAlex API key and caches.
-import { API_URL, APP_KEY } from "./config";
+import { serverFetch } from "./api";
 import type { AuthorDetails, Institution, Paper } from "./types";
 
 export function shortId(url: string): string {
@@ -19,9 +19,8 @@ export function reconstructAbstract(index: Record<string, number[]> | null | und
 async function get<T>(path: string, params: Record<string, string | number> = {}): Promise<T> {
   const qs = new URLSearchParams({ path });
   for (const [k, v] of Object.entries(params)) qs.set(k, String(v));
-  const res = await fetch(`${API_URL}/api/openalex?${qs.toString()}`, {
-    headers: APP_KEY ? { "x-labmate-key": APP_KEY } : {},
-  });
+  const res = await serverFetch(`/api/openalex?${qs.toString()}`);
+  if (res.status === 429) throw new OpenAlexError(429, "Research data limit reached for today. Check OPENALEX_API_KEY on the server.");
   if (!res.ok) throw new OpenAlexError(res.status, `OpenAlex ${res.status} for ${path}`);
   return (await res.json()) as T;
 }
