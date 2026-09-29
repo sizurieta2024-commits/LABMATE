@@ -28,7 +28,7 @@ server/  Vercel functions → Claude (structured outputs) + OpenAlex proxy (hold
 **1. Server (AI)**
 ```bash
 cd server
-cp .env.example .env        # add ANTHROPIC_API_KEY and OPENALEX_API_KEY (free: openalex.org/settings/api)
+cp .env.example .env        # add ANTHROPIC_API_KEY (or OPENROUTER_API_KEY for a cheap Qwen) and OPENALEX_API_KEY (free: openalex.org/settings/api)
 npm install
 npm run dev                 # http://0.0.0.0:8787
 ```
