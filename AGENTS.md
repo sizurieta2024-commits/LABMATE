@@ -1,0 +1,33 @@
+# Labmate: guide for coding agents (Claude Code, Codex)
+
+Labmate helps students get into research labs: rank every active researcher at their university by fit (OpenAlex), flag labs with fresh NIH/NSF grants, brief a paper in plain English, gate email drafting behind a 3-question understanding quiz, and track outreach. Built for RevenueCat Shipaton 2026 (Next Gen Award). Deadline: Sep 30, 2026, 11:45 PM PT.
+
+## Layout
+- `app/`: Expo (SDK 57) + Expo Router app. Routes in `app/src/app/`; logic in `app/src/lib/`; UI kit in `app/src/ui/`; global state in `app/src/state/AppState.tsx`.
+  - Data: `lib/openalex.ts` (researchers and papers), `lib/grants.ts` (NIH RePORTER + NSF awards), `lib/ranking.ts` (pure ranking).
+  - Money: `lib/purchases.ts` (RevenueCat, entitlement `pro`), `app/paywall.tsx`.
+  - Rules: `lib/config.ts` (3 free briefs, 5 sends/week, 7-day follow-up).
+- `server/`: Vercel functions (`api/brief.ts`, `api/draft.ts`) that call Claude with structured outputs. `dev.ts` runs them locally on :8787. The Claude key lives only here.
+- `ideas/`: hackathon idea research.
+
+## Commands
+```bash
+# app
+cd app && npm install            # .npmrc sets legacy-peer-deps
+npx expo install <pkg>           # always use this for Expo/RN packages (EXPO_OFFLINE=1 if api.expo.dev is blocked)
+npx expo start                   # run (Expo Go works; RevenueCat runs in preview mode there)
+npx eslint . && npx tsc --noEmit && npx vitest run
+
+# server
+cd server && npm install
+npm run dev                      # needs server/.env with ANTHROPIC_API_KEY
+npx tsc && npx vitest run
+```
+Run lint, typecheck and tests for whichever package you touch before committing. CI (`.github/workflows/ci.yml`) runs the same.
+
+## Conventions
+- TypeScript strict. Keep network code in `lib/`, keep ranking and date logic pure and unit-tested (`app/src/lib/__tests__`).
+- Never commit secrets. `EXPO_PUBLIC_*` values ship inside the app bundle.
+- Claude calls: `server/lib/claude.ts`. Model `claude-opus-5-5`, `effort: "low"` for speed, structured outputs via `betaZodOutputFormat`, `fallbacks: "default"`. Schemas in `server/lib/schemas.ts`; the app mirrors the output types in `app/src/lib/types.ts`, so keep them in sync.
+- Product ethics are features: never let the model invent student experience; keep the quiz gate and the weekly send cap.
+- Expo changes fast: check versioned docs for SDK 57 rather than memory.
