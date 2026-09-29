@@ -7,7 +7,7 @@ Labmate helps students get into research labs: rank every active researcher at t
   - Data: `lib/openalex.ts` (researchers and papers), `lib/grants.ts` (NIH RePORTER + NSF awards), `lib/ranking.ts` (pure ranking).
   - Money: `lib/purchases.ts` (RevenueCat, entitlement `pro`), `app/paywall.tsx`.
   - Rules: `lib/config.ts` (3 free briefs, 5 sends/week, 7-day follow-up).
-- `server/`: Vercel functions (`api/brief.ts`, `api/draft.ts`) that call Claude with structured outputs. `dev.ts` runs them locally on :8787. The Claude key lives only here.
+- `server/`: Vercel functions: `api/brief.ts`, `api/draft.ts` (Claude, structured outputs) and `api/openalex.ts` (OpenAlex proxy: OpenAlex requires an API key since Feb 2026, keyless ≈ 10 searches/day, so the key lives server-side with a 1h cache). `dev.ts` runs them locally on :8787. All secrets live only here.
 - `ideas/`: hackathon idea research.
 
 ## Commands
@@ -20,7 +20,7 @@ npx eslint . && npx tsc --noEmit && npx vitest run
 
 # server
 cd server && npm install
-npm run dev                      # needs server/.env with ANTHROPIC_API_KEY
+npm run dev                      # needs server/.env with ANTHROPIC_API_KEY + OPENALEX_API_KEY
 npx tsc && npx vitest run
 ```
 Run lint, typecheck and tests for whichever package you touch before committing. CI (`.github/workflows/ci.yml`) runs the same.

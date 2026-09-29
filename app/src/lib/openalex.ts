@@ -1,9 +1,7 @@
-// OpenAlex: free, open index of scholarly works (https://openalex.org).
+// OpenAlex: open index of scholarly works (https://openalex.org).
+// Calls go through our server (/api/openalex), which holds the OpenAlex API key and caches.
+import { API_URL, APP_KEY } from "./config";
 import type { AuthorDetails, Institution, Paper } from "./types";
-
-const BASE = "https://api.openalex.org";
-const EMAIL = process.env.EXPO_PUBLIC_OPENALEX_EMAIL;
-const API_KEY = process.env.EXPO_PUBLIC_OPENALEX_API_KEY;
 
 export function shortId(url: string): string {
   return url.slice(url.lastIndexOf("/") + 1);
@@ -19,11 +17,11 @@ export function reconstructAbstract(index: Record<string, number[]> | null | und
 }
 
 async function get<T>(path: string, params: Record<string, string | number> = {}): Promise<T> {
-  const url = new URL(BASE + path);
-  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, String(v));
-  if (EMAIL) url.searchParams.set("mailto", EMAIL);
-  if (API_KEY) url.searchParams.set("api_key", API_KEY);
-  const res = await fetch(url.toString());
+  const qs = new URLSearchParams({ path });
+  for (const [k, v] of Object.entries(params)) qs.set(k, String(v));
+  const res = await fetch(`${API_URL}/api/openalex?${qs.toString()}`, {
+    headers: APP_KEY ? { "x-labmate-key": APP_KEY } : {},
+  });
   if (!res.ok) throw new OpenAlexError(res.status, `OpenAlex ${res.status} for ${path}`);
   return (await res.json()) as T;
 }

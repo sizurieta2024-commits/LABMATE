@@ -4,7 +4,7 @@ import { MissingKeyError, ModelOutputError, ModelRefusalError } from "./claude.j
 
 const CORS_HEADERS = {
   "access-control-allow-origin": "*",
-  "access-control-allow-methods": "POST, OPTIONS",
+  "access-control-allow-methods": "GET, POST, OPTIONS",
   "access-control-allow-headers": "content-type, x-labmate-key",
 };
 
@@ -24,10 +24,10 @@ export function preflight(): Response {
  * and the server's env). Not a real secret once the app ships, but it keeps
  * random traffic off the Claude bill.
  */
-function authorized(request: Request): boolean {
+export function requireAppKey(request: Request): Response | null {
   const expected = process.env.LABMATE_APP_KEY;
-  if (!expected) return true;
-  return request.headers.get("x-labmate-key") === expected;
+  if (!expected || request.headers.get("x-labmate-key") === expected) return null;
+  return json({ error: "unauthorized" }, 401);
 }
 
 export function handler<Req extends z.ZodType>(
@@ -35,7 +35,8 @@ export function handler<Req extends z.ZodType>(
   run: (input: z.infer<Req>) => Promise<unknown>,
 ): (request: Request) => Promise<Response> {
   return async (request) => {
-    if (!authorized(request)) return json({ error: "unauthorized" }, 401);
+    const denied = requireAppKey(request);
+    if (denied) return denied;
 
     let raw: unknown;
     try {
