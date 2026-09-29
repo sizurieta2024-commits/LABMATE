@@ -1,10 +1,25 @@
 import { API_URL, APP_KEY } from "./config";
+// Note: openalex.ts imports serverFetch from here; keep this module free of openalex imports.
 import type { Brief, Draft, Paper, Profile } from "./types";
 
+/** fetch() against the Labmate server, with a helpful message when it's unreachable. */
+export async function serverFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  try {
+    return await fetch(`${API_URL}${path}`, {
+      ...init,
+      headers: { ...(APP_KEY ? { "x-labmate-key": APP_KEY } : {}), ...(init.headers as Record<string, string>) },
+    });
+  } catch {
+    throw new Error(
+      `Can't reach the Labmate server at ${API_URL}. Is it running, and is EXPO_PUBLIC_API_URL set to your computer's LAN IP (not localhost)?`,
+    );
+  }
+}
+
 async function post<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
+  const res = await serverFetch(path, {
     method: "POST",
-    headers: { "content-type": "application/json", ...(APP_KEY ? { "x-labmate-key": APP_KEY } : {}) },
+    headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
   const data = (await res.json().catch(() => ({}))) as { error?: string };
