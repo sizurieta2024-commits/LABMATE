@@ -44,6 +44,11 @@ describe("rankResearchers", () => {
     expect(ranked[0].score).toBe(5.6); // 3 (last) × 1.5 (this year) × 1.25 (2 interests), 1 decimal
   });
 
+  it("ignores consortium papers with huge author lists", () => {
+    const big = work("W1", 2026, Array.from({ length: 40 }, (_, i) => [`A${i}`, `Author ${i}`, i === 39 ? "last" : "middle"] as [string, string, "last" | "middle"]));
+    expect(rankResearchers([{ interest: "x", work: big }], INST, now)).toHaveLength(0);
+  });
+
   it("matches child institutions through lineage", () => {
     const w = work("W1", 2026, [["A1", "Prof", "last", "I555"]]);
     w.authorships[0].institutions[0].lineage = ["https://openalex.org/I555", `https://openalex.org/${INST}`];
