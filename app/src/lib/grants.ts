@@ -1,5 +1,5 @@
 // Fresh grant money is a strong "this lab is probably hiring" signal.
-// NIH RePORTER: https://api.reporter.nih.gov  ·  NSF Awards: https://resources.research.gov/common/webapi/awardapisearch-v1.htm
+// NIH RePORTER: https://api.reporter.nih.gov (keyless)  ·  NSF Awards: https://resources.research.gov/common/webapi/awardapisearch-v1.htm (keyless)
 import type { Grant } from "./types";
 
 const DAY_MS = 86_400_000;
@@ -81,7 +81,8 @@ type NsfAward = { id?: string; title?: string; date?: string; fundsObligatedAmt?
 async function nsfGrants(name: string, institution: string, now: Date): Promise<Grant[]> {
   const { first, last } = splitName(name);
   const start = new Date(now.getTime() - 400 * DAY_MS);
-  const url = new URL("https://api.nsf.gov/services/v1/awards.json");
+  // api.nsf.gov now redirects unreliably; research.gov is the current host.
+  const url = new URL("https://www.research.gov/awardapi-service/v1/awards.json");
   url.searchParams.set("pdPIName", `${first} ${last}`);
   url.searchParams.set("dateStart", `${start.getMonth() + 1}/${start.getDate()}/${start.getFullYear()}`);
   url.searchParams.set("printFields", "id,title,date,fundsObligatedAmt,awardeeName");

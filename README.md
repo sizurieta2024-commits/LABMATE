@@ -18,9 +18,9 @@ Built by two students for RevenueCat Shipaton 2026 (Next Gen Award). MIT license
 
 ```
 app/     Expo SDK 57 + Expo Router (TypeScript)
-  └─ calls OpenAlex, NIH RePORTER, NSF directly (free, keyless)
-  └─ calls server/ for AI (brief, draft)
-server/  Vercel functions → Claude (structured outputs)
+  └─ calls NIH RePORTER + NSF directly (keyless)
+  └─ calls server/ for AI (brief, draft) and OpenAlex (proxied)
+server/  Vercel functions → Claude (structured outputs) + OpenAlex proxy (holds the API key, caches)
 ```
 
 ## Run it
@@ -28,7 +28,7 @@ server/  Vercel functions → Claude (structured outputs)
 **1. Server (AI)**
 ```bash
 cd server
-cp .env.example .env        # add ANTHROPIC_API_KEY
+cp .env.example .env        # add ANTHROPIC_API_KEY and OPENALEX_API_KEY (free: openalex.org/settings/api)
 npm install
 npm run dev                 # http://0.0.0.0:8787
 ```
@@ -51,7 +51,7 @@ Without RevenueCat keys the paywall runs in a clearly labeled local demo mode.
 6. Optional: create a **Web Purchase Link** (Web Billing, Stripe) for the same offering and put its URL in `EXPO_PUBLIC_RC_WEB_PURCHASE_URL`. The app appends the user's app user ID so the parent's purchase unlocks the student's account. Check the link format in the dashboard.
 
 ## Deploy the server
-Import the repo in Vercel, set **Root Directory** to `server`, and add `ANTHROPIC_API_KEY` (and optionally `LABMATE_APP_KEY`, matching `EXPO_PUBLIC_LABMATE_APP_KEY` in the app). Endpoints: `/api/brief`, `/api/draft`.
+Import the repo in Vercel, set **Root Directory** to `server`, and add `ANTHROPIC_API_KEY`, `OPENALEX_API_KEY` (and optionally `LABMATE_APP_KEY`, matching `EXPO_PUBLIC_LABMATE_APP_KEY` in the app). Endpoints: `/api/brief`, `/api/draft`, `/api/openalex`.
 
 ## Builds
 `app/eas.json` has `development` (dev client, Android APK), `preview` (installable APK) and `production` profiles:

@@ -13,10 +13,11 @@ Submit on Devpost: demo video (<2 min, public YouTube), this public repo (MIT `L
 ## Task board (tick when done)
 
 ### Person A: data + AI quality + video
-- [ ] `server/.env` with `ANTHROPIC_API_KEY`; run `npm run dev`; app `.env` → `EXPO_PUBLIC_API_URL=http://<LAN-IP>:8787`
+- [ ] Free OpenAlex key at https://openalex.org/settings/api (required now)
+- [ ] `server/.env` with `ANTHROPIC_API_KEY` + `OPENALEX_API_KEY`; run `npm run dev`; app `.env` → `EXPO_PUBLIC_API_URL=http://<LAN-IP>:8787`
 - [ ] Run on a phone with **our real university**; check the ranking, grant badges and briefs make sense; fix anything off
 - [ ] Tune prompts in `server/lib/prompts.ts` on 5 real papers
-- [ ] Deploy `server/` to Vercel (Root Directory `server`, env `ANTHROPIC_API_KEY`, `LABMATE_APP_KEY`); share the URL with B
+- [ ] Deploy `server/` to Vercel (Root Directory `server`, env `ANTHROPIC_API_KEY`, `OPENALEX_API_KEY`, `LABMATE_APP_KEY`); share the URL with B
 - [ ] Record the demo video (script in chat); upload to YouTube as **Public**
 
 ### Person B: money + build + submission
