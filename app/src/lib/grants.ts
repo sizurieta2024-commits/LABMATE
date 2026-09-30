@@ -115,8 +115,23 @@ async function nsfGrants(name: string, institution: string, now: Date): Promise<
     });
 }
 
-/** Most recent NIH or NSF award in the last ~13 months, or null. */
-export async function latestGrant(name: string, institution: string, now: Date = new Date()): Promise<Grant | null> {
+// The radar checks the top researchers and the lab page checks the same person again,
+// so remember lookups for the session (keyed by person and school).
+const GRANT_TTL_MS = 30 * 60 * 1000;
+const grantCache = new Map<string, { at: number; value: Promise<Grant | null> }>();
+
+/** Most recent NIH or NSF award in the last ~13 months, or null. Cached for 30 minutes. */
+export function latestGrant(name: string, institution: string, now: Date = new Date()): Promise<Grant | null> {
+  const key = `${name}|${institution}`;
+  const hit = grantCache.get(key);
+  if (hit && now.getTime() - hit.at < GRANT_TTL_MS) return hit.value;
+  const value = lookupGrant(name, institution, now);
+  value.catch(() => grantCache.delete(key)); // don't remember failures
+  grantCache.set(key, { at: now.getTime(), value });
+  return value;
+}
+
+async function lookupGrant(name: string, institution: string, now: Date): Promise<Grant | null> {
   const results = await Promise.allSettled([nihGrants(name, institution, now), nsfGrants(name, institution, now)]);
   const all = results
     .flatMap((r) => (r.status === "fulfilled" ? r.value : []))

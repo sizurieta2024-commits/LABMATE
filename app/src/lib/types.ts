@@ -83,4 +83,5 @@ export type Outreach = {
   createdAt: string;
   sentAt?: string;
   followUpAt?: string;
+  to?: string; // the professor's address, when known
 };

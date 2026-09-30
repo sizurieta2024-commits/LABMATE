@@ -5,9 +5,11 @@ import type { Brief, Paper, Profile } from "./types";
 // is most likely to tap. It lives in memory only: nothing is cached or counted
 // against the free limit unless the student opens it.
 const pending = new Map<string, Promise<Brief>>();
+const MAX_KEPT = 3; // browsing many labs shouldn't pile up unused briefs in memory
 
 export function prefetchBrief(paper: Paper, authorName: string, profile: Profile): void {
   if (pending.has(paper.id)) return;
+  if (pending.size >= MAX_KEPT) pending.delete(pending.keys().next().value!);
   const p = fetchBrief(authorName, paper, profile);
   p.catch(() => pending.delete(paper.id)); // a failed prefetch just means a normal load later
   pending.set(paper.id, p);

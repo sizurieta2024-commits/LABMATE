@@ -41,5 +41,7 @@ export function nextStatus(s: OutreachStatus): OutreachStatus {
 }
 
 export function mailtoUrl(subject: string, body: string, to = ""): string {
-  return `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  // A plain address goes in as is (some mail apps don't decode %40); anything else is dropped.
+  const addr = /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/.test(to) ? to : "";
+  return `mailto:${addr}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }

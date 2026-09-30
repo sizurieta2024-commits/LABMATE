@@ -4,7 +4,7 @@ import { Pressable, Text, View } from "react-native";
 import { ask, notify } from "../lib/dialog";
 import { fetchBrief, fetchDraft } from "../lib/api";
 import { getPaper } from "../lib/openalex";
-import { composeEmail } from "../lib/mail";
+import { composeEmail, type MailApp } from "../lib/mail";
 import { takePrefetched } from "../lib/prefetch";
 import { canSend, markSent, sentThisWeek } from "../lib/outreach";
 import { FREE_BRIEFS, WEEKLY_SEND_CAP } from "../lib/config";
@@ -26,6 +26,8 @@ export default function BriefScreen() {
 
   const [answers, setAnswers] = useState<(number | null)[]>([null, null, null]);
   const [takeaway, setTakeaway] = useState("");
+  // The professor's address when Labmate found it; the student can type or fix it.
+  const [to, setTo] = useState(email ?? "");
   const [draft, setDraft] = useState<Draft | null>(null);
   const [drafting, setDrafting] = useState(false);
   // One outreach record per email. Once it's sent, a rewrite starts a new record,
@@ -100,11 +102,12 @@ export default function BriefScreen() {
     paperTitle: paper?.title ?? "",
     subject: d.subject,
     body: d.body,
+    to: to.trim() || undefined,
     status,
     createdAt: record.createdAt,
   });
 
-  const send = async () => {
+  const send = async (app: MailApp = "mail") => {
     if (!draft) return;
     const list = await loadOutreach();
     if (!canSend(list)) {
@@ -114,7 +117,7 @@ export default function BriefScreen() {
       );
       return;
     }
-    await composeEmail(draft.subject, draft.body, email ?? "");
+    await composeEmail(draft.subject, draft.body, to.trim(), app);
     if (await ask("Did you send it?", "We'll remind you to follow up in 7 days.", "Yes, sent", "Not yet")) {
       await upsertOutreach(markSent(outreachRecord(draft, "drafted")));
       setRecord({ id: newId("out"), createdAt: new Date().toISOString() });
@@ -140,7 +143,7 @@ export default function BriefScreen() {
 
   // One floating glass action that follows the student through the steps.
   const bar = !brief ? null : draft ? (
-    <ActionBar title="Open in Mail" icon="paperplane.fill" onPress={send} />
+    <ActionBar title="Open in Mail" icon="paperplane.fill" onPress={() => send("mail")} />
   ) : quizPassed ? (
     <ActionBar
       title="Write My Email"
@@ -230,8 +233,16 @@ export default function BriefScreen() {
 
             {draft && (
               <Group header="Your email" footer="Edit anything before you send it.">
+                <FieldRow label="To" value={to} onChangeText={setTo} placeholder="professor@university.edu" autoCapitalize="none" autoCorrect={false} keyboardType="email-address" />
                 <FieldRow label="Subject" value={draft.subject} onChangeText={(subject) => setDraft({ ...draft, subject })} multiline style={{ minHeight: 0 }} />
                 <FieldRow value={draft.body} onChangeText={(body) => setDraft({ ...draft, body })} multiline style={{ minHeight: 280, lineHeight: 23 }} />
+              </Group>
+            )}
+            {draft && (
+              <Group header="Send from your university account" footer="Opens a ready-to-send draft in your own inbox. Labmate never sends anything for you.">
+                <Row icon="envelope.fill" iconBg="#EA4335" title="Open in Gmail" accessory="chevron" onPress={() => send("gmail")} />
+                <Row icon="envelope.fill" iconBg="#0A64C2" title="Open in Outlook" accessory="chevron" onPress={() => send("outlook")} />
+                <Row icon="paperplane.fill" title="Open in Mail app" accessory="chevron" onPress={() => send("mail")} />
               </Group>
             )}
             {draft && (

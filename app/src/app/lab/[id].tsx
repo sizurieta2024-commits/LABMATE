@@ -41,9 +41,6 @@ export default function Lab() {
       const [a, p] = await Promise.all([getAuthor(id), getRecentPapers(id, 5)]);
       setAuthor(a);
       setPapers(p);
-      // Start the brief for the likeliest pick (newest paper with an abstract) while they read.
-      const likely = p.find((x) => x.abstract) ?? p[0];
-      if (likely && canBrief.current) prefetchBrief(likely, a.name, profile);
       fetchEmail(a.name, profile.school.name)
         .then(setEmailLookup)
         .catch(() => setEmailLookup("error"));
@@ -52,6 +49,16 @@ export default function Lab() {
       setError(e instanceof Error ? e.message : "Couldn't load this lab");
     }
   }, [id, profile]);
+
+  // Once the student has stayed a few seconds, start the brief for the likeliest pick
+  // (newest paper with an abstract), so a quick look at a lab doesn't spend an AI call.
+  useEffect(() => {
+    if (!author || !papers || !profile || !canBrief.current) return;
+    const likely = papers.find((x) => x.abstract) ?? papers[0];
+    if (!likely) return;
+    const t = setTimeout(() => prefetchBrief(likely, author.name, profile), 3000);
+    return () => clearTimeout(t);
+  }, [author, papers, profile]);
 
   useEffect(() => {
     // Fetch on mount: state is only set after awaited network calls.

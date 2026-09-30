@@ -1,5 +1,5 @@
 import { router, Stack } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { FlatList, Pressable, RefreshControl, Text, View } from "react-native";
 import { FRESH_GRANT_DAYS } from "../lib/config";
 import { latestGrant } from "../lib/grants";
@@ -28,8 +28,13 @@ export default function Radar() {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Each load gets a run id; an older run's grant loop stops once a newer one starts.
+  const run = useRef(0);
+
+  /** Loads the ranked list; grant checks continue in the background. Resolves when the list is in. */
   const load = useCallback(async () => {
     if (!profile) return;
+    const me = ++run.current;
     try {
       const batches = await Promise.all(
         profile.interests.map(async (interest) =>
@@ -37,17 +42,21 @@ export default function Radar() {
         ),
       );
       const ranked = rankResearchers(batches.flat(), profile.school.id);
+      if (me !== run.current) return;
       setError(null);
       setResearchers(ranked);
       setGrants({}); // a new list (e.g. after editing interests) needs fresh grant checks
 
-      // Grant checks run after the list renders, a few at a time.
-      const top = ranked.slice(0, GRANT_LOOKUPS);
-      for (let i = 0; i < top.length; i += 3) {
-        const chunk = top.slice(i, i + 3);
-        const found = await Promise.all(chunk.map((r) => latestGrant(r.name, profile.school.name).catch(() => null)));
-        setGrants((g) => ({ ...g, ...Object.fromEntries(chunk.map((r, j) => [r.id, found[j]])) }));
-      }
+      // Grant checks run after the list renders, a few at a time, without holding up the caller.
+      void (async () => {
+        const top = ranked.slice(0, GRANT_LOOKUPS);
+        for (let i = 0; i < top.length && me === run.current; i += 3) {
+          const chunk = top.slice(i, i + 3);
+          const found = await Promise.all(chunk.map((r) => latestGrant(r.name, profile.school.name).catch(() => null)));
+          if (me !== run.current) return;
+          setGrants((g) => ({ ...g, ...Object.fromEntries(chunk.map((r, j) => [r.id, found[j]])) }));
+        }
+      })();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't load researchers");
     }

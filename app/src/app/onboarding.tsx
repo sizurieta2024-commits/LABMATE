@@ -57,6 +57,8 @@ export default function Onboarding() {
   const canSave = !!name.trim() && !!school && interests.length > 0;
   const missing = !name.trim() ? "Add your name" : !school ? "Choose your university" : interests.length === 0 ? "Add at least one interest" : undefined;
 
+  const editing = !!profile;
+
   const save = async () => {
     if (!school) return;
     setSaving(true);
@@ -70,7 +72,13 @@ export default function Onboarding() {
       experience: experience.trim(),
     });
     setSaving(false);
-    router.replace("/radar");
+    // Editing an existing profile: go back to the radar underneath (it reloads for the new profile).
+    // First setup: clear welcome and setup from the stack so the radar has no back button.
+    if (editing && router.canGoBack()) router.back();
+    else {
+      if (router.canDismiss()) router.dismissAll();
+      router.replace("/radar");
+    }
   };
 
   return (

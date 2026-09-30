@@ -55,6 +55,7 @@ export default function Tracker() {
     await composeEmail(
       `Re: ${o.subject}`,
       `Hi Professor ${o.researcherName.split(" ").pop()},\n\nI wanted to follow up on my note from last week about your work on "${o.paperTitle}". I'd still love to learn whether there's a way I could contribute to the lab.\n\nThank you,\n`,
+      o.to ?? "",
     );
     // Restart the clock so the row can move on (and nudge again in a week if needed).
     await save(list.map((x) => (x.id === o.id ? { ...x, followUpAt: new Date(Date.now() + FOLLOW_UP_DAYS * 86_400_000).toISOString() } : x)));
