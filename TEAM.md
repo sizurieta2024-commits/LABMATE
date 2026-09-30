@@ -21,7 +21,7 @@ Submit on Devpost: demo video (<2 min, public YouTube), this public repo (MIT `L
 - [ ] Record the demo video (script in chat); upload to YouTube as **Public**
 
 ### Person B: money + build + submission
-- [ ] RevenueCat: project, entitlement `pro`, products (3-month Season Pass $39, Monthly $12.99), default offering, **Test Store** key → `EXPO_PUBLIC_RC_TEST_KEY`
+- [ ] RevenueCat: project, entitlement `pro`, products (3-month Season Pass $27.99, Monthly $9.99), default offering, **Test Store** key → `EXPO_PUBLIC_RC_TEST_KEY`
 - [ ] Web Purchase Link for "Ask a parent to pay" → `EXPO_PUBLIC_RC_WEB_PURCHASE_URL`; confirm the link format matches `lib/purchases.ts#parentPayLink`
 - [ ] `eas build --profile preview --platform android` (installable APK with real purchase UI) and/or `development` build; test buy + restore
 - [ ] Branding: app icon + splash in `app/assets/`, name "Labmate" in `app.json`
