@@ -7,6 +7,7 @@ import { AppStateProvider, useApp } from "../state/AppState";
 import { colors } from "../ui/theme";
 
 // Titles use the label color; only buttons get the blue tint.
+const IOS = Platform.OS === "ios";
 const titleColor = Platform.OS === "ios" ? DynamicColorIOS({ light: "#000000", dark: "#FFFFFF" }) : "#000000";
 
 // Screens that work before setup. Anything else (e.g. a shared /radar link on a
@@ -46,9 +47,11 @@ export default function RootLayout() {
         {/* Native iOS headers: large titles that collapse on scroll, Liquid Glass bar buttons on iOS 26. */}
         <Stack
           screenOptions={{
-            headerLargeTitle: true,
-            // iOS pads content under a transparent bar; the web would overlap it.
-            headerTransparent: Platform.OS === "ios",
+            // Large, transparent (Liquid Glass) headers on iOS, where the system insets the
+            // content under them. Android and web get a solid header so nothing hides beneath it.
+            headerLargeTitle: IOS,
+            headerTransparent: IOS,
+            headerStyle: IOS ? undefined : { backgroundColor: colors.bg as string },
             headerShadowVisible: false,
             headerLargeTitleShadowVisible: false,
             headerTintColor: colors.tintHex,

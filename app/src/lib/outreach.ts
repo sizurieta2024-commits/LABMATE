@@ -32,7 +32,7 @@ export const STATUS_LABEL: Record<OutreachStatus, string> = {
   sent: "Sent",
   replied: "Replied",
   interview: "Interview",
-  joined: "Joined 🎉",
+  joined: "Joined",
 };
 
 export function nextStatus(s: OutreachStatus): OutreachStatus {

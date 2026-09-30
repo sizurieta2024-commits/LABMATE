@@ -25,6 +25,8 @@ export async function generateStructured<S extends z.ZodType>(opts: {
   system: string;
   prompt: string;
   schema: S;
+  /** Output cap for the OpenRouter path; see openrouter.ts. */
+  maxTokens?: number;
 }): Promise<z.infer<S>> {
   // OpenRouter (cheap open models) wins when its key is set; otherwise Claude.
   if (process.env.OPENROUTER_API_KEY) {
@@ -35,7 +37,8 @@ export async function generateStructured<S extends z.ZodType>(opts: {
   }
   const response = await getClient().beta.messages.parse({
     model: MODEL,
-    max_tokens: 16000,
+    // Headroom over the OpenRouter cap: Claude may think briefly before answering.
+    max_tokens: (opts.maxTokens ?? 4000) * 2,
     betas: ["server-side-fallback-2026-07-01"],
     fallbacks: "default",
     output_config: { effort: "low", format: betaZodOutputFormat(opts.schema) },

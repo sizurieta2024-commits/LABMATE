@@ -1,11 +1,14 @@
 import * as Clipboard from "expo-clipboard";
 import * as WebBrowser from "expo-web-browser";
 import { router, Stack, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
-import { Alert, Text, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Text, View } from "react-native";
 import { fetchEmail } from "../../lib/api";
+import { notify } from "../../lib/dialog";
+import { FRESH_GRANT_DAYS } from "../../lib/config";
 import { formatMoney, latestGrant } from "../../lib/grants";
 import { getAuthor, getRecentPapers } from "../../lib/openalex";
+import { prefetchBrief } from "../../lib/prefetch";
 import type { AuthorDetails, EmailLookup, Grant, Paper } from "../../lib/types";
 import { useApp } from "../../state/AppState";
 import { Button, Capsule, Card, ErrorBox, Group, Icon, Loading, Row, Screen, Stat } from "../../ui/components";
@@ -18,7 +21,12 @@ function compact(n: number): string {
 
 export default function Lab() {
   const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
-  const { profile, isPro } = useApp();
+  const { profile, isPro, briefsLeft } = useApp();
+  // Read by load() without making it re-run (and reload the page) when a brief is used.
+  const canBrief = useRef(false);
+  useEffect(() => {
+    canBrief.current = isPro || briefsLeft > 0;
+  }, [isPro, briefsLeft]);
   const [author, setAuthor] = useState<AuthorDetails | null>(null);
   const [papers, setPapers] = useState<Paper[] | null>(null);
   const [grant, setGrant] = useState<Grant | null | undefined>(undefined);
@@ -33,6 +41,9 @@ export default function Lab() {
       const [a, p] = await Promise.all([getAuthor(id), getRecentPapers(id, 5)]);
       setAuthor(a);
       setPapers(p);
+      // Start the brief for the likeliest pick (newest paper with an abstract) while they read.
+      const likely = p.find((x) => x.abstract) ?? p[0];
+      if (likely && canBrief.current) prefetchBrief(likely, a.name, profile);
       fetchEmail(a.name, profile.school.name)
         .then(setEmailLookup)
         .catch(() => setEmailLookup("error"));
@@ -49,13 +60,16 @@ export default function Lab() {
   }, [load]);
 
   const displayName = author?.name ?? name ?? "Researcher";
-  const grantNote = grant ? `Recently awarded a new ${grant.source} grant: "${grant.title}"` : undefined;
+  // Grants up to ~13 months old are shown, but only recent ones are "new" (config FRESH_GRANT_DAYS).
+  const fresh = !!grant && grant.daysAgo <= FRESH_GRANT_DAYS;
+  // The server caps the note at 200 characters; long NIH titles are cut to fit.
+  const grantNote = grant && fresh ? `Recently awarded a new ${grant.source} grant: "${grant.title}"`.slice(0, 200) : undefined;
 
   const foundEmail = emailLookup && emailLookup !== "error" && emailLookup.email ? emailLookup : null;
 
   const copyEmail = async (address: string) => {
     await Clipboard.setStringAsync(address);
-    Alert.alert("Email copied", `${address} is on your clipboard. It's also filled in when you open your draft in Mail.`);
+    notify("Email copied", `${address} is on your clipboard. It's also filled in when you open your draft in Mail.`);
   };
 
   return (
@@ -85,7 +99,7 @@ export default function Lab() {
         <Card style={{ gap: space.md }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
             <Icon name="dollarsign.circle.fill" size={20} color={colors.green} />
-            <Text style={[type.headline, { color: colors.green }]}>Money just landed</Text>
+            <Text style={[type.headline, { color: colors.green }]}>{fresh ? "Money just landed" : "Recent funding"}</Text>
           </View>
           {isPro ? (
             <>
@@ -100,7 +114,7 @@ export default function Lab() {
             </>
           ) : (
             <>
-              <Text style={type.body}>This lab received a new {grant.source} grant recently. Labs with fresh funding often need help now.</Text>
+              <Text style={type.body}>This lab received {fresh ? "a new" : "an"} {grant.source} grant {fresh ? "recently" : "this year"}. Labs with fresh funding often need help now.</Text>
               <Button title="See Amount and Timing" kind="prominent" icon="lock.open.fill" onPress={() => router.push("/paywall")} />
             </>
           )}

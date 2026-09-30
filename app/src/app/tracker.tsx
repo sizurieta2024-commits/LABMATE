@@ -1,9 +1,10 @@
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Text, View } from "react-native";
-import { WEEKLY_SEND_CAP } from "../lib/config";
+import { FOLLOW_UP_DAYS, WEEKLY_SEND_CAP } from "../lib/config";
+import { notify } from "../lib/dialog";
 import { composeEmail } from "../lib/mail";
-import { followUpDue, nextStatus, sentThisWeek, STATUS_LABEL, STATUS_ORDER } from "../lib/outreach";
+import { canSend, followUpDue, markSent, nextStatus, sentThisWeek, STATUS_LABEL, STATUS_ORDER } from "../lib/outreach";
 import { loadOutreach, saveOutreach } from "../lib/storage";
 import type { Outreach, OutreachStatus } from "../lib/types";
 import { Capsule, Card, Group, Icon, Row, Screen } from "../ui/components";
@@ -33,17 +34,31 @@ export default function Tracker() {
     }, []),
   );
 
-  const advance = async (o: Outreach) => {
-    const next = list.map((x) => (x.id === o.id ? { ...x, status: nextStatus(x.status) } : x));
+  const save = async (next: Outreach[]) => {
     setList(next);
     await saveOutreach(next);
   };
 
-  const followUp = (o: Outreach) =>
-    composeEmail(
+  const advance = async (o: Outreach) => {
+    // Marking a draft as sent goes through the same weekly cap and follow-up clock as sending.
+    if (o.status === "drafted") {
+      if (!canSend(list)) {
+        notify("Weekly limit reached", `Labmate caps outreach at ${WEEKLY_SEND_CAP} emails a week.`);
+        return;
+      }
+      return save(list.map((x) => (x.id === o.id ? markSent(x) : x)));
+    }
+    return save(list.map((x) => (x.id === o.id ? { ...x, status: nextStatus(x.status) } : x)));
+  };
+
+  const followUp = async (o: Outreach) => {
+    await composeEmail(
       `Re: ${o.subject}`,
       `Hi Professor ${o.researcherName.split(" ").pop()},\n\nI wanted to follow up on my note from last week about your work on "${o.paperTitle}". I'd still love to learn whether there's a way I could contribute to the lab.\n\nThank you,\n`,
     );
+    // Restart the clock so the row can move on (and nudge again in a week if needed).
+    await save(list.map((x) => (x.id === o.id ? { ...x, followUpAt: new Date(Date.now() + FOLLOW_UP_DAYS * 86_400_000).toISOString() } : x)));
+  };
 
   const sent = sentThisWeek(list);
 
@@ -59,7 +74,7 @@ export default function Tracker() {
             <View key={i} style={{ flex: 1, height: 8, borderRadius: 4, backgroundColor: i < sent ? colors.tint : colors.fillStrong }} />
           ))}
         </View>
-        <Text style={type.footnote}>Five emails a week, so every professor gets a real one. Tap a status to move it forward.</Text>
+        <Text style={type.footnote}>Five emails a week, so every professor gets a real one. Tap a row when things move forward.</Text>
       </Card>
 
       {list.length === 0 && (
@@ -74,7 +89,7 @@ export default function Tracker() {
         const items = list.filter((o) => o.status === status);
         if (items.length === 0) return null;
         return (
-          <Group key={status} header={`${STATUS_LABEL[status].replace(" 🎉", "")} · ${items.length}`}>
+          <Group key={status} header={`${STATUS_LABEL[status]} · ${items.length}`}>
             {items.map((o) => (
               <View key={o.id}>
                 <Row
@@ -83,9 +98,11 @@ export default function Tracker() {
                   title={o.researcherName}
                   subtitle={o.subject}
                   accessory={
-                    followUpDue(o) ? <Capsule label="Follow up" tone="orange" icon="clock.fill" /> : <Capsule label={`${STATUS_LABEL[nextStatus(o.status)].replace(" 🎉", "")} →`} tone="blue" />
+                    followUpDue(o) ? <Capsule label="Follow up" tone="orange" icon="clock.fill" />
+                      : o.status === "joined" ? <Capsule label="Joined" tone="green" icon="star.fill" />
+                      : <Capsule label={`Mark ${STATUS_LABEL[nextStatus(o.status)].toLowerCase()}`} tone="blue" />
                   }
-                  onPress={() => (followUpDue(o) ? followUp(o) : advance(o))}
+                  onPress={o.status === "joined" ? undefined : () => (followUpDue(o) ? followUp(o) : advance(o))}
                 />
               </View>
             ))}

@@ -77,8 +77,8 @@ export default function Onboarding() {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <Screen bottomInset={ACTION_BAR_SPACE}>
         <Group header="About you">
-          <FieldRow label="Name" value={name} onChangeText={setName} placeholder="Alex Rivera" autoComplete="name" />
-          <FieldRow label="Major" value={major} onChangeText={setMajor} placeholder="Biology" />
+          <FieldRow label="Name" value={name} onChangeText={setName} placeholder="Alex Rivera" autoComplete="name" maxLength={80} />
+          <FieldRow label="Major" value={major} onChangeText={setMajor} placeholder="Biology" maxLength={80} />
           <View style={{ paddingHorizontal: space.lg, paddingVertical: space.md, gap: space.md }}>
             <Text style={type.body}>Year</Text>
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
@@ -127,6 +127,7 @@ export default function Onboarding() {
             onChangeText={setInterestDraft}
             onSubmitEditing={() => addInterest(interestDraft)}
             placeholder="Add a topic and press return"
+            maxLength={60}
             returnKeyType="done"
           />
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm, padding: space.lg }}>
@@ -135,7 +136,7 @@ export default function Onboarding() {
         </Group>
 
         <Group header="Experience (optional)" footer="Courses, lab skills, projects. Labmate never invents anything you don't write here.">
-          <FieldRow value={experience} onChangeText={setExperience} placeholder="e.g. Intro to Neuroscience, Python" multiline />
+          <FieldRow value={experience} onChangeText={setExperience} placeholder="e.g. Intro to Neuroscience, Python" multiline maxLength={600} />
         </Group>
       </Screen>
       <ActionBar title={missing ?? "Find My Labs"} icon={missing ? undefined : "sparkle.magnifyingglass"} onPress={save} disabled={!canSave} loading={saving} />

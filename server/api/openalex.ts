@@ -7,6 +7,8 @@ const UPSTREAM = "https://api.openalex.org";
 const ALLOWED_PATH = /^\/(works|authors|institutions)(\/[WAI]\d+)?$/;
 const TTL_MS = 60 * 60 * 1000;
 const MAX_ENTRIES = 500;
+const MAX_CACHED_BYTES = 1_000_000; // skip caching unusually large responses
+const ALLOWED_PARAMS = new Set(["search", "filter", "per_page", "page", "select", "sort"]);
 const RETRY_DELAY_MS = 400;
 
 const cache = new Map<string, { at: number; status: number; body: string }>();
@@ -20,8 +22,9 @@ export async function GET(request: Request): Promise<Response> {
   if (!ALLOWED_PATH.test(path)) return json({ error: "path not allowed" }, 400);
 
   const upstream = new URL(UPSTREAM + path);
+  // Only the parameters the app uses, so the server's key can't be used for arbitrary queries.
   for (const [k, v] of url.searchParams) {
-    if (k !== "path" && k !== "api_key") upstream.searchParams.set(k, v);
+    if (ALLOWED_PARAMS.has(k)) upstream.searchParams.set(k, k === "per_page" ? String(Math.min(Number(v) || 25, 200)) : v);
   }
   upstream.searchParams.sort();
   const cacheKey = upstream.toString();
@@ -35,7 +38,7 @@ export async function GET(request: Request): Promise<Response> {
   const res = await fetchWithRetry(upstream);
   if (!res) return json({ error: "OpenAlex unreachable" }, 502);
   const body = await res.text();
-  if (res.ok) {
+  if (res.ok && body.length <= MAX_CACHED_BYTES) {
     if (cache.size >= MAX_ENTRIES) cache.delete(cache.keys().next().value!);
     cache.set(cacheKey, { at: Date.now(), status: res.status, body });
   }

@@ -2,7 +2,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { GlassView, isGlassEffectAPIAvailable } from "expo-glass-effect";
 import * as Haptics from "expo-haptics";
 import { SymbolView, type SFSymbol } from "expo-symbols";
-import { Children, Fragment, isValidElement, type ReactNode } from "react";
+import { Children, Fragment, isValidElement, useEffect, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
   Platform,
@@ -180,7 +180,8 @@ export function ActionBar({ title, onPress, icon, disabled, loading }: {
             {inner}
           </GlassView>
         ) : (
-          <View style={[styles.barBtn, { backgroundColor: disabled ? colors.fillStrong : colors.tint }]}>{inner}</View>
+          // No Liquid Glass off iOS: use an opaque fill so content scrolling underneath stays out of the label.
+          <View style={[styles.barBtn, { backgroundColor: disabled ? "#E5E5EA" : colors.tint }]}>{inner}</View>
         )}
       </Pressable>
     </View>
@@ -235,6 +236,26 @@ export function Loading({ label }: { label: string }) {
     <View style={{ alignItems: "center", paddingVertical: 80, gap: space.md }}>
       <ActivityIndicator />
       <Text style={type.subhead}>{label}</Text>
+    </View>
+  );
+}
+
+/** Loading state that walks through steps, so a long AI wait reads as progress. */
+export function StagedLoading({ stages, every = 4500 }: { stages: string[]; every?: number }) {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setI((n) => Math.min(n + 1, stages.length - 1)), every);
+    return () => clearInterval(t);
+  }, [stages.length, every]);
+  return (
+    <View style={{ alignItems: "center", paddingVertical: 80, gap: space.md }}>
+      <ActivityIndicator />
+      <Text style={type.headline}>{stages[i]}</Text>
+      <View style={{ flexDirection: "row", gap: 6 }}>
+        {stages.map((_, n) => (
+          <View key={n} style={{ width: 18, height: 4, borderRadius: 2, backgroundColor: n <= i ? colors.tint : colors.fillStrong }} />
+        ))}
+      </View>
     </View>
   );
 }

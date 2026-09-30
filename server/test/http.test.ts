@@ -14,7 +14,8 @@ const validBody = {
   student: { name: "Sam", school: "State University" },
 };
 
-const emptyBrief = { summary: "ok", whyItMatters: "", keyTerms: [], smartQuestions: [], quiz: [] };
+const question = { question: "Q", options: ["a", "b", "c", "d"], answerIndex: 0, explanation: "E" };
+const emptyBrief = { summary: "ok", whyItMatters: "", keyTerms: [], smartQuestions: [], quiz: [question, question, question] };
 
 function post(body: unknown, headers: Record<string, string> = {}) {
   return new Request("http://x/api/brief", {
@@ -34,7 +35,7 @@ describe("brief endpoint", () => {
     vi.mocked(generateStructured).mockResolvedValue(emptyBrief);
     const res = await POST(post(validBody));
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual(emptyBrief);
+    expect((await res.json()).summary).toBe("ok");
     const call = vi.mocked(generateStructured).mock.calls[0][0];
     expect(call.prompt).toContain("Engines of analysis");
     expect(call.prompt).toContain("State University");
@@ -51,6 +52,16 @@ describe("brief endpoint", () => {
     expect((await POST(post(validBody))).status).toBe(401);
     vi.mocked(generateStructured).mockResolvedValue(emptyBrief);
     expect((await POST(post(validBody, { "x-labmate-key": "secret" }))).status).toBe(200);
+  });
+
+  it("asks again when the quiz comes back short, then gives up with 502", async () => {
+    const short = { ...emptyBrief, quiz: [question] };
+    vi.mocked(generateStructured).mockResolvedValueOnce(short).mockResolvedValueOnce(emptyBrief);
+    expect((await POST(post(validBody))).status).toBe(200);
+    expect(generateStructured).toHaveBeenCalledTimes(2);
+
+    vi.mocked(generateStructured).mockReset().mockResolvedValue(short);
+    expect((await POST(post(validBody))).status).toBe(502);
   });
 
   it("maps a model refusal to 422", async () => {

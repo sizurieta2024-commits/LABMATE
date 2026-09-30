@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { MissingKeyError, ModelOutputError, ModelRefusalError } from "./claude.js";
 import { UpstreamError } from "./openrouter.js";
+import { allow, clientIp } from "./ratelimit.js";
 
 const CORS_HEADERS = {
   "access-control-allow-origin": "*",
@@ -38,6 +39,7 @@ export function handler<Req extends z.ZodType>(
   return async (request) => {
     const denied = requireAppKey(request);
     if (denied) return denied;
+    if (!allow(clientIp(request))) return json({ error: "Too many requests. Try again in a few minutes." }, 429);
 
     let raw: unknown;
     try {

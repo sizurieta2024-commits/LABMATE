@@ -34,13 +34,18 @@ export function toStrictSchema(schema: z.ZodType): Record<string, unknown> {
 }
 
 const ATTEMPTS = 2;
-const ATTEMPT_TIMEOUT_MS = 45_000;
+const ATTEMPT_TIMEOUT_MS = 30_000;
+// The retry switches to a smaller, faster model so it doesn't land back in the
+// same slow provider pool. Override with OPENROUTER_FALLBACK_MODEL.
+const FALLBACK_MODEL = "qwen/qwen3-30b-a3b-instruct-2507";
 
 type Opts<S extends z.ZodType> = {
   system: string;
   prompt: string;
   schema: S;
   onBadOutput: (detail: string) => Error;
+  /** Output cap. Keep it near the real size: some providers pad JSON mode with whitespace up to the cap. */
+  maxTokens?: number;
 };
 
 /** Worth another try: a slow or flaky provider, not a bad key or bad request. */
@@ -59,7 +64,7 @@ export async function openRouterStructured<S extends z.ZodType>(opts: Opts<S>): 
   const avoid: string[] = [];
   for (let attempt = 1; ; attempt++) {
     try {
-      return await callOnce(opts, avoid);
+      return await callOnce(opts, avoid, attempt === 1 ? primaryModel() : fallbackModel());
     } catch (error) {
       // Some providers occasionally pad JSON mode with whitespace until the token
       // limit; retry on a different one.
@@ -82,7 +87,10 @@ class ProviderOutputError extends Error {
   }
 }
 
-async function callOnce<S extends z.ZodType>(opts: Opts<S>, avoid: string[]): Promise<z.infer<S>> {
+const primaryModel = () => process.env.OPENROUTER_MODEL || DEFAULT_MODEL;
+const fallbackModel = () => process.env.OPENROUTER_FALLBACK_MODEL || FALLBACK_MODEL;
+
+async function callOnce<S extends z.ZodType>(opts: Opts<S>, avoid: string[], model: string): Promise<z.infer<S>> {
   const res = await fetch(URL, {
     method: "POST",
     signal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
@@ -92,7 +100,7 @@ async function callOnce<S extends z.ZodType>(opts: Opts<S>, avoid: string[]): Pr
       "x-title": "Labmate",
     },
     body: JSON.stringify({
-      model: process.env.OPENROUTER_MODEL || DEFAULT_MODEL,
+      model,
       messages: [
         { role: "system", content: opts.system },
         { role: "user", content: opts.prompt },
@@ -104,8 +112,7 @@ async function callOnce<S extends z.ZodType>(opts: Opts<S>, avoid: string[]): Pr
       // Only providers that enforce the schema; fastest first (demo latency matters).
       provider: { require_parameters: true, sort: "throughput", ...(avoid.length ? { ignore: avoid } : {}) },
       temperature: 0.4,
-      // A brief is ~1.5K tokens; the cap stops a runaway response early.
-      max_tokens: 2500,
+      max_tokens: opts.maxTokens ?? 2200,
     }),
   });
 

@@ -43,6 +43,17 @@ describe("openRouterStructured", () => {
     expect(second.provider.ignore).toEqual(["Slowco"]);
   });
 
+  it("retries on the smaller fallback model with the requested token cap", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const fetch = vi.fn().mockResolvedValueOnce(reply("{  ")).mockResolvedValueOnce(reply('{"subject":"Hi"}'));
+    vi.stubGlobal("fetch", fetch);
+    await openRouterStructured({ ...opts, maxTokens: 800 });
+    const [first, second] = fetch.mock.calls.map((c) => JSON.parse(c[1].body));
+    expect(first.model).not.toBe(second.model);
+    expect(second.model).toMatch(/30b/);
+    expect(first.max_tokens).toBe(800);
+  });
+
   it("does not retry a bad key", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
     const fetch = vi.fn().mockResolvedValue(new Response("nope", { status: 401 }));
