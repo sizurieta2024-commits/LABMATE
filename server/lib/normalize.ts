@@ -5,8 +5,21 @@ import type { Brief } from "./schemas.js";
  * gate assumes exactly 3 questions (4 means it can never be passed), and small
  * models often ignore "exactly N" in the schema descriptions.
  */
+// Schema field names a model sometimes leaks into the options list.
+const LEAKED = new Set(["answerindex", "explanation", "question", "options"]);
+
+/** Removes blank or leaked options; null if the correct answer itself was junk. */
+function cleanOptions(q: Brief["quiz"][number]): Brief["quiz"][number] | null {
+  const keep = q.options.map((o, i) => ({ o: o.trim(), i })).filter(({ o }) => o && !LEAKED.has(o.toLowerCase()));
+  const answerIndex = keep.findIndex(({ i }) => i === q.answerIndex);
+  if (answerIndex < 0) return null;
+  return { ...q, options: keep.map(({ o }) => o), answerIndex };
+}
+
 export function normalizeBrief(b: Brief, random: () => number = Math.random): Brief {
   const quiz = b.quiz
+    .map(cleanOptions)
+    .filter((q): q is Brief["quiz"][number] => q !== null)
     .filter((q) => q.options.length >= 2 && q.answerIndex >= 0 && q.answerIndex < q.options.length)
     .slice(0, 3)
     .map((q) => {

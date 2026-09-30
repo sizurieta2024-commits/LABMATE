@@ -1,3 +1,4 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { GlassView, isGlassEffectAPIAvailable } from "expo-glass-effect";
 import * as Haptics from "expo-haptics";
 import { SymbolView, type SFSymbol } from "expo-symbols";
@@ -18,7 +19,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { MATERIAL } from "./symbols";
+import { ionFor } from "./iconFallback";
 import { colors, radius, rounded, space, squircle, type } from "./theme";
 
 const glassOK = Platform.OS === "ios" && isGlassEffectAPIAvailable();
@@ -27,20 +28,11 @@ export const tap = () => {
   if (Platform.OS === "ios") Haptics.selectionAsync();
 };
 
-/** SF Symbol on iOS; the matching Material Symbol on Android and web. */
+/** SF Symbol on iOS; the closest Ionicon elsewhere (web, Android). */
 export function Icon({ name, size = 20, color = colors.tint, weight = "semibold" }: {
   name: SFSymbol; size?: number; color?: ColorValue; weight?: "regular" | "medium" | "semibold" | "bold";
 }) {
-  const material = MATERIAL[name];
-  return (
-    <SymbolView
-      name={material ? ({ ios: name, android: material, web: material } as never) : name}
-      size={size}
-      tintColor={color}
-      weight={Platform.OS === "ios" ? weight : undefined}
-      fallback={<View style={{ width: size, height: size }} />}
-    />
-  );
+  return <SymbolView name={name} size={size} tintColor={color} weight={weight} fallback={<Ionicons name={ionFor(name)} size={size} color={color as string} />} />;
 }
 
 /** Scrolling page under a native (large-title) header. Leaves room for a floating bar. */

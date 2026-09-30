@@ -1,19 +1,49 @@
-import { Stack } from "expo-router";
+import { router, Stack, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { DynamicColorIOS, Platform } from "react-native";
+import { useEffect } from "react";
+import { DynamicColorIOS, Platform, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { AppStateProvider } from "../state/AppState";
+import { AppStateProvider, useApp } from "../state/AppState";
 import { colors } from "../ui/theme";
 
 // Titles use the label color; only buttons get the blue tint.
 const IOS = Platform.OS === "ios";
 const titleColor = Platform.OS === "ios" ? DynamicColorIOS({ light: "#000000", dark: "#FFFFFF" }) : "#000000";
 
+// Screens that work before setup. Anything else (e.g. a shared /radar link on a
+// fresh device) goes to the welcome screen instead of rendering empty.
+const OPEN_ROUTES = new Set(["/", "/welcome", "/onboarding"]);
+
+function ProfileGate() {
+  const { ready, profile } = useApp();
+  const pathname = usePathname();
+  useEffect(() => {
+    if (ready && !profile && !OPEN_ROUTES.has(pathname)) router.replace("/welcome");
+  }, [ready, profile, pathname]);
+  return null;
+}
+
+const webPage = { flex: 1, backgroundColor: "#E5E5EA" } as const;
+
+const webFrame = {
+  flex: 1,
+  width: "100%",
+  maxWidth: 520,
+  alignSelf: "center",
+  overflow: "hidden",
+  backgroundColor: colors.bg,
+  boxShadow: "0 0 24px rgba(0, 0, 0, 0.08)",
+} as const;
+
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <AppStateProvider>
         <StatusBar style="auto" />
+        <ProfileGate />
+        {/* On the web, show the app at phone width in the middle of the window. */}
+        <View style={Platform.OS === "web" ? webPage : { flex: 1 }}>
+        <View style={Platform.OS === "web" ? webFrame : { flex: 1 }}>
         {/* Native iOS headers: large titles that collapse on scroll, Liquid Glass bar buttons on iOS 26. */}
         <Stack
           screenOptions={{
@@ -44,6 +74,8 @@ export default function RootLayout() {
             options={{ presentation: "modal", headerShown: false, contentStyle: { backgroundColor: colors.bg } }}
           />
         </Stack>
+        </View>
+        </View>
       </AppStateProvider>
     </SafeAreaProvider>
   );

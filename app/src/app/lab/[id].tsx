@@ -1,12 +1,15 @@
+import * as Clipboard from "expo-clipboard";
 import * as WebBrowser from "expo-web-browser";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Text, View } from "react-native";
+import { fetchEmail } from "../../lib/api";
+import { notify } from "../../lib/dialog";
 import { FRESH_GRANT_DAYS } from "../../lib/config";
 import { formatMoney, latestGrant } from "../../lib/grants";
 import { getAuthor, getRecentPapers } from "../../lib/openalex";
 import { prefetchBrief } from "../../lib/prefetch";
-import type { AuthorDetails, Grant, Paper } from "../../lib/types";
+import type { AuthorDetails, EmailLookup, Grant, Paper } from "../../lib/types";
 import { useApp } from "../../state/AppState";
 import { Button, Capsule, Card, ErrorBox, Group, Icon, Loading, Row, Screen, Stat } from "../../ui/components";
 import { colors, rounded, space, type } from "../../ui/theme";
@@ -28,6 +31,9 @@ export default function Lab() {
   const [papers, setPapers] = useState<Paper[] | null>(null);
   const [grant, setGrant] = useState<Grant | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
+  // Looked up in the background as soon as the lab loads; revealed on tap.
+  const [emailLookup, setEmailLookup] = useState<EmailLookup | "error" | undefined>(undefined);
+  const [showEmail, setShowEmail] = useState(false);
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -38,6 +44,9 @@ export default function Lab() {
       // Start the brief for the likeliest pick (newest paper with an abstract) while they read.
       const likely = p.find((x) => x.abstract) ?? p[0];
       if (likely && canBrief.current) prefetchBrief(likely, a.name, profile);
+      fetchEmail(a.name, profile.school.name)
+        .then(setEmailLookup)
+        .catch(() => setEmailLookup("error"));
       setGrant(await latestGrant(a.name, profile.school.name).catch(() => null));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't load this lab");
@@ -56,10 +65,12 @@ export default function Lab() {
   // The server caps the note at 200 characters; long NIH titles are cut to fit.
   const grantNote = grant && fresh ? `Recently awarded a new ${grant.source} grant: "${grant.title}"`.slice(0, 200) : undefined;
 
-  const findEmail = () =>
-    WebBrowser.openBrowserAsync(
-      `https://www.google.com/search?q=${encodeURIComponent(`"${displayName}" ${profile?.school.name ?? ""} email`)}`,
-    );
+  const foundEmail = emailLookup && emailLookup !== "error" && emailLookup.email ? emailLookup : null;
+
+  const copyEmail = async (address: string) => {
+    await Clipboard.setStringAsync(address);
+    notify("Email copied", `${address} is on your clipboard. It's also filled in when you open your draft in Mail.`);
+  };
 
   return (
     <Screen>
@@ -110,6 +121,46 @@ export default function Lab() {
         </Card>
       )}
 
+      {author && (
+        <Group footer={showEmail && foundEmail ? `Listed in their paper "${foundEmail.source.title}"${foundEmail.source.year ? ` (${foundEmail.source.year})` : ""}.` : undefined}>
+          {!showEmail ? (
+            <Row icon="envelope.fill" title="Find Their Email" accessory="chevron" onPress={() => setShowEmail(true)} />
+          ) : emailLookup === undefined ? (
+            <Row icon="envelope.fill" title="Looking through their papers…" />
+          ) : foundEmail ? (
+            <Row
+              icon="envelope.fill"
+              iconBg={colors.green}
+              title={foundEmail.email}
+              subtitle="Tap to copy"
+              titleStyle={{ fontWeight: "600" }}
+              accessory={<Icon name="doc.on.doc" size={16} color={colors.tint} />}
+              onPress={() => copyEmail(foundEmail.email)}
+            />
+          ) : emailLookup === "error" ? (
+            <Row
+              icon="envelope.fill"
+              iconBg={colors.orange}
+              title="Couldn't reach the email search"
+              subtitle="Tap to try again"
+              onPress={() => {
+                setEmailLookup(undefined);
+                fetchEmail(displayName, profile?.school.name ?? "")
+                  .then(setEmailLookup)
+                  .catch(() => setEmailLookup("error"));
+              }}
+            />
+          ) : (
+            <Row
+              icon="envelope.fill"
+              iconBg={colors.secondary}
+              title="No public email in their papers"
+              subtitle="Their lab or department page usually lists it."
+            />
+          )}
+        </Group>
+      )}
+
       {papers && (
         <Group header="Recent papers" footer="Pick one to get a plain-English brief.">
           {papers.length === 0 ? <Row title="No recent articles found." /> : null}
@@ -123,17 +174,17 @@ export default function Lab() {
               onPress={() =>
                 router.push({
                   pathname: "/brief",
-                  params: { workId: p.id, authorId: id, authorName: displayName, ...(grantNote ? { grantNote } : {}) },
+                  params: {
+                    workId: p.id,
+                    authorId: id,
+                    authorName: displayName,
+                    ...(grantNote ? { grantNote } : {}),
+                    ...(foundEmail ? { email: foundEmail.email } : {}),
+                  },
                 })
               }
             />
           ))}
-        </Group>
-      )}
-
-      {author && (
-        <Group>
-          <Row icon="envelope.fill" title="Find Their Email" accessory="chevron" onPress={findEmail} />
         </Group>
       )}
     </Screen>

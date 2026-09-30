@@ -21,8 +21,8 @@ export function reconstructAbstract(index: Record<string, number[]> | null | und
 async function get<T>(path: string, params: Record<string, string | number> = {}): Promise<T> {
   const qs = new URLSearchParams({ path });
   for (const [k, v] of Object.entries(params)) qs.set(k, String(v));
-  // OpenAlex has brief outages and rate limits; retry those before giving up.
-  const res = await withRetry(() => serverFetch(`/api/openalex?${qs.toString()}`));
+  // The server already retries OpenAlex once; this covers a rate limit or a longer blip.
+  const res = await withRetry(() => serverFetch(`/api/openalex?${qs.toString()}`), [1500]);
   if (!res.ok) {
     if (DEV) console.warn(`OpenAlex ${res.status} for ${path}`);
     throw new OpenAlexError(res.status, retryable(res.status) ? "The research database is busy right now. Try again in a minute." : `Couldn't load research data (${res.status}).`);
