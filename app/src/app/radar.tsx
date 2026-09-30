@@ -39,6 +39,7 @@ export default function Radar() {
       const ranked = rankResearchers(batches.flat(), profile.school.id);
       setError(null);
       setResearchers(ranked);
+      setGrants({}); // a new list (e.g. after editing interests) needs fresh grant checks
 
       // Grant checks run after the list renders, a few at a time.
       const top = ranked.slice(0, GRANT_LOOKUPS);

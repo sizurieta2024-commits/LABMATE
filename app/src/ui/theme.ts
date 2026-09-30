@@ -46,14 +46,15 @@ export const type = {
   title1: t(28, 34, "700", { letterSpacing: 0.36 }),
   title2: t(22, 28, "700", { letterSpacing: -0.26 }),
   title3: t(20, 25, "600", { letterSpacing: -0.45 }),
-  headline: t(17, 22, "600", { letterSpacing: -0.43 }),
-  body: t(17, 22, "400", { letterSpacing: -0.43 }),
-  callout: t(16, 21, "400", { letterSpacing: -0.31 }),
-  subhead: t(15, 20, "400", { letterSpacing: -0.23, color: colors.secondary as string }),
-  footnote: t(13, 18, "400", { letterSpacing: -0.08, color: colors.secondary as string }),
+  headline: t(17, 22, "600"),
+  // No negative tracking below title sizes: React Native iOS mis-measures wrapped text with it and clips the last word.
+  body: t(17, 22, "400"),
+  callout: t(16, 21, "400"),
+  subhead: t(15, 20, "400", { color: colors.secondary as string }),
+  footnote: t(13, 18, "400", { color: colors.secondary as string }),
   caption: t(12, 16, "400", { color: colors.secondary as string }),
   // Grouped-list section header, the way Settings does it.
-  section: t(13, 18, "400", { color: colors.secondary as string, textTransform: "uppercase", letterSpacing: -0.08 }),
+  section: t(13, 18, "400", { color: colors.secondary as string, textTransform: "uppercase" }),
 };
 
 // SF Pro Rounded for big numbers, like Fitness and Health.

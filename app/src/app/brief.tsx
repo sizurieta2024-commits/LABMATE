@@ -1,15 +1,17 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { Alert, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
+import { ask, notify } from "../lib/dialog";
 import { fetchBrief, fetchDraft } from "../lib/api";
 import { getPaper } from "../lib/openalex";
 import { composeEmail } from "../lib/mail";
+import { takePrefetched } from "../lib/prefetch";
 import { canSend, markSent, sentThisWeek } from "../lib/outreach";
 import { FREE_BRIEFS, WEEKLY_SEND_CAP } from "../lib/config";
 import { cacheBrief, loadBriefsUsed, loadCachedBrief, loadOutreach, newId, upsertOutreach } from "../lib/storage";
 import type { Brief, Draft, Outreach, Paper } from "../lib/types";
 import { useApp } from "../state/AppState";
-import { ACTION_BAR_SPACE, ActionBar, Button, Card, ErrorBox, FieldRow, Group, Icon, Loading, Row, Screen, tap } from "../ui/components";
+import { ACTION_BAR_SPACE, ActionBar, Button, Card, ErrorBox, FieldRow, Group, Icon, Row, Screen, StagedLoading, tap } from "../ui/components";
 import { colors, rounded, space, type } from "../ui/theme";
 
 type Params = { workId: string; authorId: string; authorName: string; grantNote?: string };
@@ -26,7 +28,9 @@ export default function BriefScreen() {
   const [takeaway, setTakeaway] = useState("");
   const [draft, setDraft] = useState<Draft | null>(null);
   const [drafting, setDrafting] = useState(false);
-  const [outreachId] = useState(() => newId("out"));
+  // One outreach record per email. Once it's sent, a rewrite starts a new record,
+  // so re-drafting can't turn a sent email back into a draft (and free a weekly slot).
+  const [record, setRecord] = useState(() => ({ id: newId("out"), createdAt: new Date().toISOString() }));
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -44,7 +48,7 @@ export default function BriefScreen() {
         return;
       }
       setNeedsPro(false);
-      const b = await fetchBrief(authorName, p, profile);
+      const b = await (takePrefetched(workId) ?? fetchBrief(authorName, p, profile));
       await cacheBrief(workId, b);
       await recordBrief();
       setBrief(b);
@@ -64,7 +68,8 @@ export default function BriefScreen() {
     load();
   };
 
-  const quizPassed = !!brief && brief.quiz.every((q, i) => answers[i] === q.answerIndex);
+  // All three right; a brief with fewer questions never unlocks the email.
+  const quizPassed = !!brief && brief.quiz.length === 3 && brief.quiz.every((q, i) => answers[i] === q.answerIndex);
 
   const makeDraft = async () => {
     if (!profile || !paper || !brief) return;
@@ -89,37 +94,32 @@ export default function BriefScreen() {
   };
 
   const outreachRecord = (d: Draft, status: Outreach["status"]): Outreach => ({
-    id: outreachId,
+    id: record.id,
     researcherId: authorId,
     researcherName: authorName,
     paperTitle: paper?.title ?? "",
     subject: d.subject,
     body: d.body,
     status,
-    createdAt: new Date().toISOString(),
+    createdAt: record.createdAt,
   });
 
   const send = async () => {
     if (!draft) return;
     const list = await loadOutreach();
     if (!canSend(list)) {
-      Alert.alert(
+      notify(
         "Weekly limit reached",
         `You've sent ${sentThisWeek(list)} emails this week. Labmate caps outreach at ${WEEKLY_SEND_CAP} a week so every email gets real attention, and professors keep answering Labmate students.`,
       );
       return;
     }
     await composeEmail(draft.subject, draft.body);
-    Alert.alert("Did you send it?", "We'll remind you to follow up in 7 days.", [
-      { text: "Not yet", style: "cancel" },
-      {
-        text: "Yes, sent",
-        onPress: async () => {
-          await upsertOutreach(markSent(outreachRecord(draft, "drafted")));
-          router.push("/tracker");
-        },
-      },
-    ]);
+    if (await ask("Did you send it?", "We'll remind you to follow up in 7 days.", "Yes, sent", "Not yet")) {
+      await upsertOutreach(markSent(outreachRecord(draft, "drafted")));
+      setRecord({ id: newId("out"), createdAt: new Date().toISOString() });
+      router.push("/tracker");
+    }
   };
 
   const correct = brief ? brief.quiz.filter((q, i) => answers[i] === q.answerIndex).length : 0;
@@ -157,7 +157,9 @@ export default function BriefScreen() {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <Screen bottomInset={ACTION_BAR_SPACE}>
         {error && <ErrorBox message={error} onRetry={brief ? undefined : retry} />}
-        {!brief && !error && <Loading label="Reading the paper so you don't have to…" />}
+        {!brief && !error && (
+          <StagedLoading stages={["Reading the paper…", "Putting it in plain English…", "Picking the key terms…", "Writing your quiz…"]} />
+        )}
 
         {paper && brief && (
           <>
@@ -222,7 +224,7 @@ export default function BriefScreen() {
 
             {quizPassed && (
               <Group header="In your own words" footer="What caught your interest? This is what makes the email yours.">
-                <FieldRow value={takeaway} onChangeText={setTakeaway} placeholder="One or two sentences" multiline />
+                <FieldRow value={takeaway} onChangeText={setTakeaway} placeholder="One or two sentences" multiline maxLength={600} />
               </Group>
             )}
 

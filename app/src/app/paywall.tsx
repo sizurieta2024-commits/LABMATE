@@ -1,9 +1,10 @@
 import { router } from "expo-router";
 import type { SFSymbol } from "expo-symbols";
 import { useEffect, useState } from "react";
-import { Alert, Image, Pressable, Share, Text, View } from "react-native";
+import { Image, Pressable, Share, Text, View } from "react-native";
+import { notify } from "../lib/dialog";
 import type { PurchasesPackage } from "react-native-purchases";
-import { buy, getPackages, parentPayLink, restore, revenueCatEnabled } from "../lib/purchases";
+import { buy, getPackages, parentPayEnabled, parentPayLink, restore, revenueCatEnabled } from "../lib/purchases";
 import { useApp } from "../state/AppState";
 import { ACTION_BAR_SPACE, ActionBar, Button, Group, Icon, Loading, Row, Screen, tap } from "../ui/components";
 import { colors, radius, rounded, space, squircle, type } from "../ui/theme";
@@ -49,7 +50,7 @@ export default function Paywall() {
         router.back();
       }
     } catch (e) {
-      Alert.alert("Purchase failed", e instanceof Error ? e.message : "Please try again.");
+      notify("Purchase failed", e instanceof Error ? e.message : "Please try again.");
     } finally {
       setBusy(false);
     }
@@ -58,10 +59,12 @@ export default function Paywall() {
   const askParent = async () => {
     const link = profile && parentPayLink(profile.userId);
     if (!link) {
-      Alert.alert("Not set up yet", "Add a RevenueCat Web Purchase Link to enable parent checkout.");
+      notify("Not set up yet", "Add a RevenueCat Web Purchase Link to enable parent checkout.");
       return;
     }
-    await Share.share({ message: `I'm using Labmate to get a research position this semester. Could you unlock Pro for me? ${link}` });
+    const message = `I'm using Labmate to get a research position this semester. Could you unlock Pro for me? ${link}`;
+    // Browsers without navigator.share reject; show the link so it can be copied instead.
+    await Share.share({ message }).catch(() => notify("Send this link to a parent", link));
   };
 
   if (isPro) {
@@ -78,6 +81,16 @@ export default function Paywall() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      {/* Swipe-down closes the sheet on iOS; web and Android need a visible way out. */}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Close"
+        hitSlop={12}
+        onPress={() => { tap(); if (router.canGoBack()) router.back(); else router.replace("/radar"); }}
+        style={{ position: "absolute", top: 18, right: 18, zIndex: 10, width: 34, height: 34, borderRadius: 17, backgroundColor: colors.fill, alignItems: "center", justifyContent: "center" }}
+      >
+        <Icon name="xmark" size={14} color={colors.secondary} weight="bold" />
+      </Pressable>
       <Screen bottomInset={ACTION_BAR_SPACE + 20} contentInsetAdjustmentBehavior="never" contentContainerStyle={{ paddingTop: 76 }}>
         <View style={{ alignItems: "center", gap: space.md }}>
           <Image source={require("../../assets/icon.png")} style={{ width: 76, height: 76, borderRadius: 18, ...squircle }} />
@@ -125,7 +138,8 @@ export default function Paywall() {
 
         <View style={{ alignItems: "center", gap: space.xs }}>
           <Text style={[type.footnote, { textAlign: "center" }]}>Cancel anytime. Payments by RevenueCat.</Text>
-          <Button title="Ask a Parent to Pay" kind="plain" size="small" icon="heart.fill" onPress={askParent} />
+          {/* Only offered once a RevenueCat Web Purchase Link is configured. */}
+          {parentPayEnabled() && <Button title="Ask a Parent to Pay" kind="plain" size="small" icon="heart.fill" onPress={askParent} />}
           {!demo && (
             <Button
               title="Restore Purchases"
@@ -134,7 +148,7 @@ export default function Paywall() {
               onPress={async () => {
                 const ok = await restore().catch(() => false);
                 await refreshPro();
-                Alert.alert(ok ? "Restored" : "Nothing to restore");
+                notify(ok ? "Restored" : "Nothing to restore");
               }}
             />
           )}

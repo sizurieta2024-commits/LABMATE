@@ -1,7 +1,7 @@
 import { GlassView, isGlassEffectAPIAvailable } from "expo-glass-effect";
 import * as Haptics from "expo-haptics";
 import { SymbolView, type SFSymbol } from "expo-symbols";
-import { Children, Fragment, isValidElement, type ReactNode } from "react";
+import { Children, Fragment, isValidElement, useEffect, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
   Platform,
@@ -18,6 +18,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { MATERIAL } from "./symbols";
 import { colors, radius, rounded, space, squircle, type } from "./theme";
 
 const glassOK = Platform.OS === "ios" && isGlassEffectAPIAvailable();
@@ -26,11 +27,20 @@ export const tap = () => {
   if (Platform.OS === "ios") Haptics.selectionAsync();
 };
 
-/** SF Symbol with a plain-text fallback off iOS. */
+/** SF Symbol on iOS; the matching Material Symbol on Android and web. */
 export function Icon({ name, size = 20, color = colors.tint, weight = "semibold" }: {
   name: SFSymbol; size?: number; color?: ColorValue; weight?: "regular" | "medium" | "semibold" | "bold";
 }) {
-  return <SymbolView name={name} size={size} tintColor={color} weight={weight} fallback={<View style={{ width: size, height: size }} />} />;
+  const material = MATERIAL[name];
+  return (
+    <SymbolView
+      name={material ? ({ ios: name, android: material, web: material } as never) : name}
+      size={size}
+      tintColor={color}
+      weight={Platform.OS === "ios" ? weight : undefined}
+      fallback={<View style={{ width: size, height: size }} />}
+    />
+  );
 }
 
 /** Scrolling page under a native (large-title) header. Leaves room for a floating bar. */
@@ -178,7 +188,8 @@ export function ActionBar({ title, onPress, icon, disabled, loading }: {
             {inner}
           </GlassView>
         ) : (
-          <View style={[styles.barBtn, { backgroundColor: disabled ? colors.fillStrong : colors.tint }]}>{inner}</View>
+          // No Liquid Glass off iOS: use an opaque fill so content scrolling underneath stays out of the label.
+          <View style={[styles.barBtn, { backgroundColor: disabled ? "#E5E5EA" : colors.tint }]}>{inner}</View>
         )}
       </Pressable>
     </View>
@@ -233,6 +244,26 @@ export function Loading({ label }: { label: string }) {
     <View style={{ alignItems: "center", paddingVertical: 80, gap: space.md }}>
       <ActivityIndicator />
       <Text style={type.subhead}>{label}</Text>
+    </View>
+  );
+}
+
+/** Loading state that walks through steps, so a long AI wait reads as progress. */
+export function StagedLoading({ stages, every = 4500 }: { stages: string[]; every?: number }) {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setI((n) => Math.min(n + 1, stages.length - 1)), every);
+    return () => clearInterval(t);
+  }, [stages.length, every]);
+  return (
+    <View style={{ alignItems: "center", paddingVertical: 80, gap: space.md }}>
+      <ActivityIndicator />
+      <Text style={type.headline}>{stages[i]}</Text>
+      <View style={{ flexDirection: "row", gap: 6 }}>
+        {stages.map((_, n) => (
+          <View key={n} style={{ width: 18, height: 4, borderRadius: 2, backgroundColor: n <= i ? colors.tint : colors.fillStrong }} />
+        ))}
+      </View>
     </View>
   );
 }
