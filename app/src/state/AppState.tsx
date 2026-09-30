@@ -42,14 +42,20 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     (async () => {
-      const [p, used] = await Promise.all([loadProfile(), loadBriefsUsed()]);
-      setProfileState(p);
-      setBriefsUsed(used);
-      if (p) {
-        configurePurchases(p.userId);
-        await refreshPro();
+      try {
+        const [p, used] = await Promise.all([loadProfile(), loadBriefsUsed()]);
+        setProfileState(p);
+        setBriefsUsed(used);
+        if (p) {
+          configurePurchases(p.userId);
+          await refreshPro();
+        }
+      } catch (e) {
+        // A storage or RevenueCat failure must not leave the app on its loading screen.
+        console.warn("Startup failed", e);
+      } finally {
+        setReady(true);
       }
-      setReady(true);
     })();
   }, [refreshPro]);
 

@@ -7,3 +7,6 @@ export const ENTITLEMENT_ID = "pro";
 
 export const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8787").replace(/\/$/, "");
 export const APP_KEY = process.env.EXPO_PUBLIC_LABMATE_APP_KEY ?? "";
+
+// React Native defines __DEV__; tests and Node do not.
+export const DEV = typeof __DEV__ !== "undefined" && __DEV__;

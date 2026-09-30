@@ -59,6 +59,8 @@ export function onCustomerInfo(cb: (info: CustomerInfo) => void): () => void {
   return () => Purchases.removeCustomerInfoUpdateListener(cb);
 }
 
+export const parentPayEnabled = () => !!WEB_PURCHASE_URL;
+
 export function parentPayLink(appUserID: string): string | null {
   if (!WEB_PURCHASE_URL) return null;
   return `${WEB_PURCHASE_URL.replace(/\/$/, "")}/${encodeURIComponent(appUserID)}`;

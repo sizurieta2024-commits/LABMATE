@@ -1,6 +1,8 @@
 // OpenAlex: open index of scholarly works (https://openalex.org).
 // Calls go through our server (/api/openalex), which holds the OpenAlex API key and caches.
 import { serverFetch } from "./api";
+import { DEV } from "./config";
+import { retryable, withRetry } from "./retry";
 import type { AuthorDetails, Institution, Paper } from "./types";
 
 export function shortId(url: string): string {
@@ -19,9 +21,12 @@ export function reconstructAbstract(index: Record<string, number[]> | null | und
 async function get<T>(path: string, params: Record<string, string | number> = {}): Promise<T> {
   const qs = new URLSearchParams({ path });
   for (const [k, v] of Object.entries(params)) qs.set(k, String(v));
-  const res = await serverFetch(`/api/openalex?${qs.toString()}`);
-  if (res.status === 429) throw new OpenAlexError(429, "Research data limit reached for today. Check OPENALEX_API_KEY on the server.");
-  if (!res.ok) throw new OpenAlexError(res.status, `OpenAlex ${res.status} for ${path}`);
+  // OpenAlex has brief outages and rate limits; retry those before giving up.
+  const res = await withRetry(() => serverFetch(`/api/openalex?${qs.toString()}`));
+  if (!res.ok) {
+    if (DEV) console.warn(`OpenAlex ${res.status} for ${path}`);
+    throw new OpenAlexError(res.status, retryable(res.status) ? "The research database is busy right now. Try again in a minute." : `Couldn't load research data (${res.status}).`);
+  }
   return (await res.json()) as T;
 }
 
