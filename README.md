@@ -2,7 +2,7 @@
 
 Undergrad research is close to required for med school and PhD applications, and the only way in is cold-emailing professors, who rarely reply to generic emails. Parents pay $2,900+ for mentorship programs just to get a foot in the door.
 
-**Labmate does it for $39:**
+**Labmate does it for $27.99 a season:**
 
 1. **Lab Radar.** Pick your university and interests. Labmate reads three years of papers from your school ([OpenAlex](https://openalex.org)) and ranks every active researcher by fit, weighted toward lab leads.
 2. **🟢 Money just landed.** Cross-checks [NIH RePORTER](https://reporter.nih.gov) and [NSF](https://www.nsf.gov/awardsearch/) for fresh grants. A lab that got funded weeks ago probably needs hands now.
@@ -45,7 +45,7 @@ Without RevenueCat keys the paywall runs in a clearly labeled local demo mode.
 ## RevenueCat setup (about 15 minutes)
 1. Create a project at app.revenuecat.com.
 2. Add an **entitlement** named `pro`.
-3. Add products and attach them to `pro`: a 3-month "Research Season Pass" ($39) and a monthly plan ($12.99).
+3. Add products and attach them to `pro`: a 3-month "Research Season Pass" ($27.99) and a monthly plan ($9.99).
 4. Create the **default offering** with packages *Three month* and *Monthly*.
 5. For the demo without store accounts, use the **Test Store** and put its public key in `EXPO_PUBLIC_RC_TEST_KEY`. Real purchase UI needs a development build (`eas build --profile development`); Expo Go runs RevenueCat in preview mode.
 6. Optional: create a **Web Purchase Link** (Web Billing, Stripe) for the same offering and put its URL in `EXPO_PUBLIC_RC_WEB_PURCHASE_URL`. The app appends the user's app user ID so the parent's purchase unlocks the student's account. Check the link format in the dashboard.

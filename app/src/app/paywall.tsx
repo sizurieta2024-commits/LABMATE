@@ -25,11 +25,15 @@ export default function Paywall() {
   const [packages, setPackages] = useState<PurchasesPackage[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
+  // Purchases are configured once the saved profile loads; on a cold start
+  // (e.g. reloading /paywall on web) wait for it before asking for plans.
+  const userId = profile?.userId;
   useEffect(() => {
+    if (!userId) return;
     getPackages()
       .then(setPackages)
       .catch(() => setPackages([]));
-  }, []);
+  }, [userId]);
 
   const purchase = async (p: PurchasesPackage) => {
     setBusy(p.identifier);

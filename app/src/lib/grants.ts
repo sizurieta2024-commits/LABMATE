@@ -1,8 +1,11 @@
 // Fresh grant money is a strong "this lab is probably hiring" signal.
 // NIH RePORTER: https://api.reporter.nih.gov (keyless)  ·  NSF Awards: https://resources.research.gov/common/webapi/awardapisearch-v1.htm (keyless)
+import { serverFetch } from "./api";
 import type { Grant } from "./types";
 
 const DAY_MS = 86_400_000;
+// True in the browser build; React Native has no DOM.
+const IS_WEB = typeof document !== "undefined";
 
 export function splitName(displayName: string): { first: string; last: string } {
   const parts = displayName
@@ -51,17 +54,25 @@ type NihProject = {
 async function nihGrants(name: string, institution: string, now: Date): Promise<Grant[]> {
   const { first, last } = splitName(name);
   const y = now.getFullYear();
-  const res = await fetch("https://api.reporter.nih.gov/v2/projects/search", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      criteria: { pi_names: [{ first_name: first, last_name: last }], fiscal_years: [y - 1, y, y + 1] },
-      offset: 0,
-      limit: 25,
-      sort_field: "award_notice_date",
-      sort_order: "desc",
-    }),
-  });
+  const fiscalYears = [y - 1, y, y + 1];
+  // NIH sends no CORS headers, so browsers (the web build) go through our server.
+  const res = IS_WEB
+    ? await serverFetch("/api/nih", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ firstName: first, lastName: last, fiscalYears }),
+      })
+    : await fetch("https://api.reporter.nih.gov/v2/projects/search", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          criteria: { pi_names: [{ first_name: first, last_name: last }], fiscal_years: fiscalYears },
+          offset: 0,
+          limit: 25,
+          sort_field: "award_notice_date",
+          sort_order: "desc",
+        }),
+      });
   if (!res.ok) return [];
   const data = (await res.json()) as { results?: NihProject[] };
   return (data.results ?? [])
