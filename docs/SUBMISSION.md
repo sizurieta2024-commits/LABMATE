@@ -4,9 +4,9 @@ Everything to paste into Devpost, plus the demo video script. Deadline Sep 30, 1
 
 ## Checklist
 - [ ] Repo is **public** and has `LICENSE` (MIT ✅)
-- [ ] Demo video < 2:00, **Public** on YouTube. Ready: `labmate-film-vo.mp4` (1:23, 1080p, iOS simulator footage + voiceover)
+- [x] Demo video < 2:00, **Public** on YouTube: https://youtu.be/EVx0YR8PCg0 (1:23, 1080p)
 - [ ] Devpost: category **Next Gen Award**, both teammates joined, both school emails verified
-- [ ] Fields below pasted; screenshots uploaded: `docs/screenshots/*.png` (1179×2556, no device frame)
+- [ ] Fields below pasted; gallery uploaded: `docs/gallery/*.jpg` (8 slides, 1800×1200, 3:2). Raw screens: `docs/screenshots/*.png`
 - [ ] Links: repo, video
 
 ---

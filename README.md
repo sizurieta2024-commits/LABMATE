@@ -1,5 +1,9 @@
 # Labmate: get into a research lab in 14 days
 
+**▶ [Demo video (1:23)](https://youtu.be/EVx0YR8PCg0)** · **[Try the web app](https://labmate-app.vercel.app)** · RevenueCat Shipaton 2026, Next Gen Award
+
+[![Labmate demo video](docs/gallery/1-labmate.jpg)](https://youtu.be/EVx0YR8PCg0)
+
 Undergrad research is close to required for med school and PhD applications, and the only way in is cold-emailing professors, who rarely reply to generic emails. Parents pay $2,900+ for mentorship programs just to get a foot in the door.
 
 **Labmate does it for $27.99 a season:**
@@ -8,7 +12,8 @@ Undergrad research is close to required for med school and PhD applications, and
 2. **🟢 Money just landed.** Cross-checks [NIH RePORTER](https://reporter.nih.gov) and [NSF](https://www.nsf.gov/awardsearch/) for fresh grants. A lab that got funded weeks ago probably needs hands now.
 3. **Paper brief.** Any recent paper, explained in plain English with key terms and smart questions to ask.
 4. **Understanding gate.** You must pass a 3-question quiz on the paper and write your own takeaway before Labmate drafts an email. Professors get fewer, better emails.
-5. **Outreach tracker.** Drafts open in your mail app. Follow-up reminders at day 7, and a cap of 5 sends a week.
+5. **Their email, one tap.** Labmate finds the professor's address in the author details of their own published papers (Europe PMC), with the source. Never guessed.
+6. **Outreach tracker.** Drafts open in your own Gmail, Outlook or Mail. Follow-up reminders at day 7, and a cap of 5 sends a week.
 
 Monetized with **RevenueCat**: 3 free briefs, then Labmate Pro (Research Season Pass or monthly). A parent can pay through a RevenueCat Web Purchase Link from "Ask a parent to pay".
 
