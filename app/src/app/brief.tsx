@@ -12,10 +12,10 @@ import { useApp } from "../state/AppState";
 import { ACTION_BAR_SPACE, ActionBar, Button, Card, ErrorBox, FieldRow, Group, Icon, Loading, Row, Screen, tap } from "../ui/components";
 import { colors, rounded, space, type } from "../ui/theme";
 
-type Params = { workId: string; authorId: string; authorName: string; grantNote?: string };
+type Params = { workId: string; authorId: string; authorName: string; grantNote?: string; email?: string };
 
 export default function BriefScreen() {
-  const { workId, authorId, authorName, grantNote } = useLocalSearchParams<Params>();
+  const { workId, authorId, authorName, grantNote, email } = useLocalSearchParams<Params>();
   const { profile, isPro, recordBrief } = useApp();
   const [paper, setPaper] = useState<Paper | null>(null);
   const [brief, setBrief] = useState<Brief | null>(null);
@@ -109,7 +109,7 @@ export default function BriefScreen() {
       );
       return;
     }
-    await composeEmail(draft.subject, draft.body);
+    await composeEmail(draft.subject, draft.body, email ?? "");
     Alert.alert("Did you send it?", "We'll remind you to follow up in 7 days.", [
       { text: "Not yet", style: "cancel" },
       {

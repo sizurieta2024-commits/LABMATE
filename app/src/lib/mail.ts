@@ -6,10 +6,10 @@ import { mailtoUrl } from "./outreach";
  * only), and then mailto: throws, so fall back to the share sheet, where they can
  * pick Gmail or copy the text.
  */
-export async function composeEmail(subject: string, body: string): Promise<void> {
+export async function composeEmail(subject: string, body: string, to = ""): Promise<void> {
   try {
-    await Linking.openURL(mailtoUrl(subject, body));
+    await Linking.openURL(mailtoUrl(subject, body, to));
   } catch {
-    await Share.share({ title: subject, message: `Subject: ${subject}\n\n${body}` });
+    await Share.share({ title: subject, message: `${to ? `To: ${to}\n` : ""}Subject: ${subject}\n\n${body}` });
   }
 }
