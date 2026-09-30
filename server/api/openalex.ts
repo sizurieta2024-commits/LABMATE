@@ -7,6 +7,7 @@ const UPSTREAM = "https://api.openalex.org";
 const ALLOWED_PATH = /^\/(works|authors|institutions)(\/[WAI]\d+)?$/;
 const TTL_MS = 60 * 60 * 1000;
 const MAX_ENTRIES = 500;
+const RETRY_DELAY_MS = 400;
 
 const cache = new Map<string, { at: number; status: number; body: string }>();
 
@@ -31,18 +32,31 @@ export async function GET(request: Request): Promise<Response> {
   const key = process.env.OPENALEX_API_KEY;
   if (key) upstream.searchParams.set("api_key", key);
 
-  let res: Response;
-  try {
-    res = await fetch(upstream, { headers: { "user-agent": "Labmate (Shipaton 2026)" } });
-  } catch {
-    return json({ error: "OpenAlex unreachable" }, 502);
-  }
+  const res = await fetchWithRetry(upstream);
+  if (!res) return json({ error: "OpenAlex unreachable" }, 502);
   const body = await res.text();
   if (res.ok) {
     if (cache.size >= MAX_ENTRIES) cache.delete(cache.keys().next().value!);
     cache.set(cacheKey, { at: Date.now(), status: res.status, body });
   }
   return proxied(res.status, body, "MISS");
+}
+
+/** One retry after a short pause on 5xx or a network error; OpenAlex has brief 503s. */
+async function fetchWithRetry(url: URL): Promise<Response | null> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt > 0) await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+    try {
+      const res = await fetch(url, { headers: { "user-agent": "Labmate (Shipaton 2026)" } });
+      if (res.status < 500 || attempt === 1) return res;
+    } catch (e) {
+      if (attempt === 1) {
+        console.error("OpenAlex unreachable", e);
+        return null;
+      }
+    }
+  }
+  return null;
 }
 
 function proxied(status: number, body: string, cacheState: string): Response {
