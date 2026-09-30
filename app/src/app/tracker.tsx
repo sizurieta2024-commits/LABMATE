@@ -1,8 +1,9 @@
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
-import { Linking, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { WEEKLY_SEND_CAP } from "../lib/config";
-import { followUpDue, mailtoUrl, nextStatus, sentThisWeek, STATUS_LABEL, STATUS_ORDER } from "../lib/outreach";
+import { composeEmail } from "../lib/mail";
+import { followUpDue, nextStatus, sentThisWeek, STATUS_LABEL, STATUS_ORDER } from "../lib/outreach";
 import { loadOutreach, saveOutreach } from "../lib/storage";
 import type { Outreach } from "../lib/types";
 import { Button, Card, Chip, Screen, Section } from "../ui/components";
@@ -24,11 +25,9 @@ export default function Tracker() {
   };
 
   const followUp = (o: Outreach) =>
-    Linking.openURL(
-      mailtoUrl(
-        `Re: ${o.subject}`,
-        `Hi Professor ${o.researcherName.split(" ").pop()},\n\nI wanted to follow up on my note from last week about your work on "${o.paperTitle}". I'd still love to learn whether there's a way I could contribute to the lab.\n\nThank you,\n`,
-      ),
+    composeEmail(
+      `Re: ${o.subject}`,
+      `Hi Professor ${o.researcherName.split(" ").pop()},\n\nI wanted to follow up on my note from last week about your work on "${o.paperTitle}". I'd still love to learn whether there's a way I could contribute to the lab.\n\nThank you,\n`,
     );
 
   return (
