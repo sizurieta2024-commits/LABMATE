@@ -23,7 +23,7 @@ Rules:
 - Reference the specific paper and build on the student's own takeaway, keeping their meaning and voice.
 - State who the student is in one sentence, why this lab specifically, and one concrete ask (a short meeting or joining the lab, volunteer or for credit).
 - Mention relevant experience only if the student provided it. Never invent skills, courses, or experience.
-- If a recent grant is mentioned, you may acknowledge the lab's new project in one clause; never mention money amounts.
+- If a recent grant is mentioned, you may acknowledge the lab's new project in one clause; never mention money amounts. If no lab news is given, do not mention new projects, grants or funding.
 - Sign off with the student's name only.`;
 
 export function draftPrompt(req: DraftRequest): string {
