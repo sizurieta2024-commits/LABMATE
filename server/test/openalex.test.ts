@@ -44,9 +44,18 @@ describe("openalex proxy", () => {
     expect(new URL(fetchMock.mock.calls[0][0]).searchParams.get("api_key")).toBe("oa-key");
   });
 
+  it("forwards only known parameters and caps page size", async () => {
+    await get("path=/works&search=neuro&per_page=5000&mailto=x&group_by=y");
+    const sent = new URL(fetchMock.mock.calls[0][0]).searchParams;
+    expect(sent.get("search")).toBe("neuro");
+    expect(sent.get("per_page")).toBe("200");
+    expect(sent.has("mailto")).toBe(false);
+    expect(sent.has("group_by")).toBe(false);
+  });
+
   it("caches identical queries regardless of parameter order", async () => {
-    await get("path=/works&a=1&b=2");
-    const second = await get("path=/works&b=2&a=1");
+    await get("path=/works&search=a&sort=b");
+    const second = await get("path=/works&sort=b&search=a");
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(second.headers.get("x-labmate-cache")).toBe("HIT");
   });
