@@ -67,6 +67,9 @@ export type Brief = {
 
 export type Draft = { subject: string; body: string };
 
+/** A professor's email as listed in their own published paper. */
+export type EmailLookup = { email: string; source: { title: string; year: number | null; url: string } } | { email: null };
+
 export type OutreachStatus = "drafted" | "sent" | "replied" | "interview" | "joined";
 
 export type Outreach = {

@@ -4,6 +4,7 @@
 import { createServer } from "node:http";
 import * as brief from "./api/brief.js";
 import * as draft from "./api/draft.js";
+import * as email from "./api/email.js";
 import * as nih from "./api/nih.js";
 import * as openalex from "./api/openalex.js";
 
@@ -11,6 +12,7 @@ type Handler = (r: Request) => Response | Promise<Response>;
 const routes: Record<string, Partial<Record<string, Handler>>> = {
   "/api/brief": { POST: brief.POST, OPTIONS: brief.OPTIONS },
   "/api/draft": { POST: draft.POST, OPTIONS: draft.OPTIONS },
+  "/api/email": { GET: email.GET, OPTIONS: email.OPTIONS },
   "/api/nih": { POST: nih.POST, OPTIONS: nih.OPTIONS },
   "/api/openalex": { GET: openalex.GET, OPTIONS: openalex.OPTIONS },
 };

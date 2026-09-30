@@ -1,6 +1,6 @@
 import { API_URL, APP_KEY } from "./config";
 // Note: openalex.ts imports serverFetch from here; keep this module free of openalex imports.
-import type { Brief, Draft, Paper, Profile } from "./types";
+import type { Brief, Draft, EmailLookup, Paper, Profile } from "./types";
 
 /** fetch() against the Labmate server, with a helpful message when it's unreachable. */
 export async function serverFetch(path: string, init: RequestInit = {}): Promise<Response> {
@@ -62,4 +62,13 @@ export function fetchDraft(args: {
     studentTakeaway: args.studentTakeaway,
     grantNote: args.grantNote,
   });
+}
+
+/** Looks for the professor's email in the author details of their own papers. */
+export async function fetchEmail(name: string, institution: string): Promise<EmailLookup> {
+  const qs = `name=${encodeURIComponent(name)}&institution=${encodeURIComponent(institution)}`;
+  const res = await serverFetch(`/api/email?${qs}`);
+  const data = (await res.json().catch(() => ({}))) as EmailLookup & { error?: string };
+  if (!res.ok) throw new Error(data.error ?? `Request failed (${res.status})`);
+  return data;
 }
