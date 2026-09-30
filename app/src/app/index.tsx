@@ -1,7 +1,6 @@
 import { Redirect } from "expo-router";
-import { View } from "react-native";
+import { ActivityIndicator, View } from "react-native";
 import { useApp } from "../state/AppState";
-import { Loading } from "../ui/components";
 import { colors } from "../ui/theme";
 
 export default function Index() {
@@ -9,9 +8,9 @@ export default function Index() {
   if (!ready) {
     return (
       <View style={{ flex: 1, justifyContent: "center", backgroundColor: colors.bg }}>
-        <Loading label="Loading…" />
+        <ActivityIndicator />
       </View>
     );
   }
-  return <Redirect href={profile ? "/radar" : "/onboarding"} />;
+  return <Redirect href={profile ? "/radar" : "/welcome"} />;
 }
