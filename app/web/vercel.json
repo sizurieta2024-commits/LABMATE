@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/assets/node_modules/:path*", "destination": "/assets/nm/:path*" },
+    { "source": "/((?!_expo/|assets/|favicon).*)", "destination": "/index.html" }
+  ]
+}
