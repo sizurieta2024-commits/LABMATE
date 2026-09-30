@@ -60,6 +60,7 @@ export function handler<Req extends z.ZodType>(
         console.error(error.message);
         if (error.status === 429) return json({ error: "busy, try again shortly" }, 429);
         if (error.status === 401 || error.status === 402) return json({ error: "server misconfigured" }, 500);
+        if (error.status === 504) return json({ error: "The AI took too long. Please try again." }, 504);
         return json({ error: `upstream error ${error.status}` }, 502);
       }
       if (error instanceof Anthropic.RateLimitError) return json({ error: "busy, try again shortly" }, 429);

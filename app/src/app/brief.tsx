@@ -211,6 +211,8 @@ export default function BriefScreen() {
                 multiline
               />
               <Button title={draft ? "Rewrite email" : "Write my email"} onPress={makeDraft} disabled={takeaway.trim().length < 20} loading={drafting} />
+              {/* The error box at the top is off-screen by now; repeat it where the student is looking. */}
+              {error && !drafting && <Text style={[type.small, { color: colors.danger }]}>{error}</Text>}
             </Card>
           )}
 

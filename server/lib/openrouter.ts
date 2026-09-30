@@ -33,18 +33,46 @@ export function toStrictSchema(schema: z.ZodType): Record<string, unknown> {
   return clean(z.toJSONSchema(schema)) as Record<string, unknown>;
 }
 
-/**
- * One structured-output call through OpenRouter. The provider enforces the JSON
- * schema; we still validate with zod because small models occasionally drift.
- */
-export async function openRouterStructured<S extends z.ZodType>(opts: {
+const ATTEMPTS = 2;
+const ATTEMPT_TIMEOUT_MS = 45_000;
+
+type Opts<S extends z.ZodType> = {
   system: string;
   prompt: string;
   schema: S;
   onBadOutput: (detail: string) => Error;
-}): Promise<z.infer<S>> {
+};
+
+/** Worth another try: a slow or flaky provider, not a bad key or bad request. */
+function retryable(error: unknown): boolean {
+  if (error instanceof UpstreamError) return error.status === 429 || error.status >= 500;
+  return true; // timeouts, network errors, unparsable output
+}
+
+/**
+ * One structured-output call through OpenRouter. The provider enforces the JSON
+ * schema; we still validate with zod because small models occasionally drift.
+ * A slow provider sometimes returns truncated JSON after a minute or more, so
+ * each attempt is capped and retried once (OpenRouter re-routes the retry).
+ */
+export async function openRouterStructured<S extends z.ZodType>(opts: Opts<S>): Promise<z.infer<S>> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await callOnce(opts);
+    } catch (error) {
+      console.warn(`OpenRouter attempt ${attempt} failed: ${error instanceof Error ? error.message : error}`);
+      if (attempt >= ATTEMPTS || !retryable(error)) {
+        if (error instanceof Error && error.name === "TimeoutError") throw new UpstreamError(504, "AI took too long");
+        throw error;
+      }
+    }
+  }
+}
+
+async function callOnce<S extends z.ZodType>(opts: Opts<S>): Promise<z.infer<S>> {
   const res = await fetch(URL, {
     method: "POST",
+    signal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
     headers: {
       authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
       "content-type": "application/json",
