@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { Alert, Text, View } from "react-native";
+import { Alert, Pressable, Text, View } from "react-native";
 import { fetchBrief, fetchDraft } from "../lib/api";
 import { getPaper } from "../lib/openalex";
 import { composeEmail } from "../lib/mail";
@@ -9,8 +9,8 @@ import { FREE_BRIEFS, WEEKLY_SEND_CAP } from "../lib/config";
 import { cacheBrief, loadBriefsUsed, loadCachedBrief, loadOutreach, newId, upsertOutreach } from "../lib/storage";
 import type { Brief, Draft, Outreach, Paper } from "../lib/types";
 import { useApp } from "../state/AppState";
-import { Button, Card, Chip, ErrorBox, Field, Loading, Screen, Section } from "../ui/components";
-import { colors, space, type } from "../ui/theme";
+import { ACTION_BAR_SPACE, ActionBar, Button, Card, ErrorBox, FieldRow, Group, Icon, Loading, Row, Screen, tap } from "../ui/components";
+import { colors, rounded, space, type } from "../ui/theme";
 
 type Params = { workId: string; authorId: string; authorName: string; grantNote?: string };
 
@@ -65,7 +65,6 @@ export default function BriefScreen() {
   };
 
   const quizPassed = !!brief && brief.quiz.every((q, i) => answers[i] === q.answerIndex);
-  const quizDone = answers.every((a) => a != null);
 
   const makeDraft = async () => {
     if (!profile || !paper || !brief) return;
@@ -123,110 +122,125 @@ export default function BriefScreen() {
     ]);
   };
 
+  const correct = brief ? brief.quiz.filter((q, i) => answers[i] === q.answerIndex).length : 0;
+
   if (needsPro) {
     return (
       <Screen>
-        <Card style={{ gap: space.md }}>
-          <Text style={type.h2}>You’ve used your free briefs</Text>
-          <Text style={type.body}>Labmate Pro gives you unlimited paper briefs, the fresh-grant signal, and email drafts for the whole research season.</Text>
-          <Button title="See Pro" onPress={() => router.push("/paywall")} />
-          <Button title="I have Pro, reload" variant="ghost" onPress={retry} />
+        <Card style={{ gap: space.lg, alignItems: "center", paddingVertical: space.xxxl }}>
+          <Icon name="doc.text.magnifyingglass" size={44} color={colors.tint} />
+          <Text style={[type.title2, { textAlign: "center" }]}>You’ve used your free briefs</Text>
+          <Text style={[type.subhead, { textAlign: "center" }]}>Labmate Pro gives you unlimited paper briefs, the fresh-grant signal and email drafts for the whole research season.</Text>
+          <Button title="See Labmate Pro" onPress={() => router.push("/paywall")} />
+          <Button title="I Have Pro, Reload" kind="plain" size="small" onPress={retry} />
         </Card>
       </Screen>
     );
   }
 
+  // One floating glass action that follows the student through the steps.
+  const bar = !brief ? null : draft ? (
+    <ActionBar title="Open in Mail" icon="paperplane.fill" onPress={send} />
+  ) : quizPassed ? (
+    <ActionBar
+      title="Write My Email"
+      icon="envelope.fill"
+      onPress={makeDraft}
+      loading={drafting}
+      disabled={takeaway.trim().length < 20}
+    />
+  ) : (
+    <ActionBar title={`${correct} of 3 correct to unlock`} icon="lock.fill" onPress={() => {}} disabled />
+  );
+
   return (
-    <Screen>
-      {error && <ErrorBox message={error} onRetry={brief ? undefined : retry} />}
-      {!brief && !error && <Loading label="Reading the paper so you don't have to…" />}
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <Screen bottomInset={ACTION_BAR_SPACE}>
+        {error && <ErrorBox message={error} onRetry={brief ? undefined : retry} />}
+        {!brief && !error && <Loading label="Reading the paper so you don't have to…" />}
 
-      {paper && brief && (
-        <>
-          <View style={{ gap: space.xs }}>
-            <Text style={type.label}>{authorName}</Text>
-            <Text style={type.h2}>{paper.title}</Text>
-          </View>
+        {paper && brief && (
+          <>
+            <View style={{ gap: space.sm, paddingHorizontal: space.xs }}>
+              <Text style={[type.footnote, { fontWeight: "600" }]}>{authorName}{paper.year ? ` · ${paper.year}` : ""}</Text>
+              <Text style={[type.title2, { fontSize: 24, lineHeight: 30 }]}>{paper.title}</Text>
+            </View>
 
-          <Card style={{ gap: space.md }}>
-            <Section title="In plain English">
-              <Text style={type.body}>{brief.summary}</Text>
-            </Section>
-            <Section title="Why it matters">
-              <Text style={type.body}>{brief.whyItMatters}</Text>
-            </Section>
-          </Card>
-
-          <Section title="Key terms">
-            {brief.keyTerms.map((k) => (
-              <Text key={k.term} style={type.body}>
-                <Text style={{ fontWeight: "700" }}>{k.term}: </Text>
-                {k.definition}
-              </Text>
-            ))}
-          </Section>
-
-          <Section title="Smart questions to ask">
-            {brief.smartQuestions.map((q, i) => <Text key={i} style={type.body}>• {q}</Text>)}
-          </Section>
-
-          <Card style={{ gap: space.md, borderColor: colors.accent }}>
-            <Text style={type.h3}>Understanding check</Text>
-            <Text style={type.small}>Answer all 3 correctly to unlock your email. Professors can tell who actually read their work.</Text>
-            {brief.quiz.map((q, qi) => (
-              <View key={qi} style={{ gap: space.sm }}>
-                <Text style={[type.body, { fontWeight: "600" }]}>{qi + 1}. {q.question}</Text>
-                {q.options.map((opt, oi) => {
-                  const chosen = answers[qi] === oi;
-                  const reveal = answers[qi] != null;
-                  const correct = oi === q.answerIndex;
-                  return (
-                    <Chip
-                      key={oi}
-                      label={opt}
-                      selected={chosen && !reveal}
-                      tone={reveal && correct && chosen ? "fresh" : reveal && chosen ? "warn" : "default"}
-                      onPress={() => setAnswers(answers.map((a, i) => (i === qi ? oi : a)))}
-                    />
-                  );
-                })}
-                {answers[qi] != null && (
-                  <Text style={[type.small, { color: answers[qi] === q.answerIndex ? colors.fresh : colors.warn }]}>
-                    {answers[qi] === q.answerIndex ? "✓ " : "✗ Try another answer. "}
-                    {q.explanation}
-                  </Text>
-                )}
+            <Card style={{ gap: space.lg }}>
+              <View style={{ gap: space.sm }}>
+                <Text style={[type.headline, { color: colors.tint }]}>In plain English</Text>
+                <Text style={[type.body, { lineHeight: 25 }]}>{brief.summary}</Text>
               </View>
-            ))}
-            {quizDone && !quizPassed && <Text style={[type.small, { color: colors.warn }]}>Re-read the summary and fix the ones marked ✗.</Text>}
-          </Card>
-
-          {quizPassed && (
-            <Card style={{ gap: space.md }}>
-              <Text style={type.h3}>✓ Unlocked. Now, in your own words</Text>
-              <Field
-                label="What caught your interest in this paper?"
-                value={takeaway}
-                onChangeText={setTakeaway}
-                placeholder="One or two sentences. This is what makes the email yours."
-                multiline
-              />
-              <Button title={draft ? "Rewrite email" : "Write my email"} onPress={makeDraft} disabled={takeaway.trim().length < 20} loading={drafting} />
-              {/* The error box at the top is off-screen by now; repeat it where the student is looking. */}
-              {error && !drafting && <Text style={[type.small, { color: colors.danger }]}>{error}</Text>}
+              <View style={{ gap: space.sm }}>
+                <Text style={[type.headline, { color: colors.tint }]}>Why it matters</Text>
+                <Text style={[type.body, { lineHeight: 25 }]}>{brief.whyItMatters}</Text>
+              </View>
             </Card>
-          )}
 
-          {draft && (
-            <Card style={{ gap: space.md }}>
-              <Field label="Subject" value={draft.subject} onChangeText={(subject) => setDraft({ ...draft, subject })} />
-              <Field label="Email" value={draft.body} onChangeText={(body) => setDraft({ ...draft, body })} multiline style={{ minHeight: 260 }} />
-              <Button title="Open in Mail" onPress={send} />
-              <Text style={type.small}>Tip: tap “Find their email” on the lab page, then paste the address.</Text>
-            </Card>
-          )}
-        </>
-      )}
-    </Screen>
+            <Group header="Key terms">
+              {brief.keyTerms.map((k) => <Row key={k.term} title={k.term} subtitle={k.definition} titleStyle={{ fontWeight: "600" }} lines={0} />)}
+            </Group>
+
+            <Group header="Smart questions to ask">
+              {brief.smartQuestions.map((q, i) => <Row key={i} icon="questionmark.bubble.fill" iconBg={colors.indigo} title={q} lines={0} />)}
+            </Group>
+
+            <View style={{ gap: space.lg }}>
+              <View style={{ paddingHorizontal: space.xs, gap: 4 }}>
+                <Text style={type.title2}>Understanding check</Text>
+                <Text style={type.subhead}>Professors can tell who actually read their work. Get all three right to unlock your email.</Text>
+              </View>
+              {brief.quiz.map((q, qi) => {
+                const picked = answers[qi];
+                return (
+                  <Group key={qi} footer={picked != null ? (picked === q.answerIndex ? q.explanation : "Not quite. Try another answer.") : undefined}>
+                    <View style={{ paddingHorizontal: space.lg, paddingTop: space.lg, paddingBottom: space.sm, flexDirection: "row", gap: space.sm }}>
+                      <Text style={[type.headline, rounded, { color: colors.tint }]}>{qi + 1}</Text>
+                      <Text style={[type.headline, { flex: 1 }]}>{q.question}</Text>
+                    </View>
+                    {q.options.map((opt, oi) => {
+                      const chosen = picked === oi;
+                      const right = chosen && oi === q.answerIndex;
+                      const wrong = chosen && oi !== q.answerIndex;
+                      return (
+                        <Pressable key={oi} onPress={() => { tap(); setAnswers(answers.map((a, i) => (i === qi ? oi : a))); }}>
+                          {({ pressed }) => (
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: space.md, paddingHorizontal: space.lg, paddingVertical: 13, backgroundColor: pressed ? colors.fill : right ? colors.greenSoft : "transparent" }}>
+                              <Text style={[type.body, { flex: 1, color: wrong ? colors.secondary : colors.label }]}>{opt}</Text>
+                              {right && <Icon name="checkmark.circle.fill" size={22} color={colors.green} />}
+                              {wrong && <Icon name="xmark.circle.fill" size={22} color={colors.red} />}
+                              {!chosen && <Icon name="circle" size={22} color={colors.tertiary} weight="regular" />}
+                            </View>
+                          )}
+                        </Pressable>
+                      );
+                    })}
+                  </Group>
+                );
+              })}
+            </View>
+
+            {quizPassed && (
+              <Group header="In your own words" footer="What caught your interest? This is what makes the email yours.">
+                <FieldRow value={takeaway} onChangeText={setTakeaway} placeholder="One or two sentences" multiline />
+              </Group>
+            )}
+
+            {draft && (
+              <Group header="Your email" footer="Edit anything before you send it.">
+                <FieldRow label="Subject" value={draft.subject} onChangeText={(subject) => setDraft({ ...draft, subject })} multiline style={{ minHeight: 0 }} />
+                <FieldRow value={draft.body} onChangeText={(body) => setDraft({ ...draft, body })} multiline style={{ minHeight: 280, lineHeight: 23 }} />
+              </Group>
+            )}
+            {draft && (
+              <View style={{ alignItems: "center" }}>
+                <Button title="Rewrite" kind="plain" size="small" icon="arrow.clockwise" onPress={makeDraft} loading={drafting} />
+              </View>
+            )}
+          </>
+        )}
+      </Screen>
+      {bar}
+    </View>
   );
 }

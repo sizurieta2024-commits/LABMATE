@@ -6,8 +6,13 @@ import { formatMoney, latestGrant } from "../../lib/grants";
 import { getAuthor, getRecentPapers } from "../../lib/openalex";
 import type { AuthorDetails, Grant, Paper } from "../../lib/types";
 import { useApp } from "../../state/AppState";
-import { Button, Card, Chip, ErrorBox, Loading, Screen, Section } from "../../ui/components";
-import { colors, space, type } from "../../ui/theme";
+import { Button, Capsule, Card, ErrorBox, Group, Icon, Loading, Row, Screen, Stat } from "../../ui/components";
+import { colors, rounded, space, type } from "../../ui/theme";
+
+function compact(n: number): string {
+  if (n >= 1000) return `${(n / 1000).toFixed(n >= 10_000 ? 0 : 1)}K`;
+  return String(n);
+}
 
 export default function Lab() {
   const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
@@ -50,66 +55,74 @@ export default function Lab() {
       {!author && !error && <Loading label="Loading lab…" />}
 
       {author && (
-        <View style={{ gap: space.xs }}>
-          <Text style={type.title}>{author.name}</Text>
-          {!!author.institution && <Text style={type.small}>{author.institution}</Text>}
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.xs, marginTop: space.sm }}>
-            <Chip label={`${author.worksCount} papers`} />
-            <Chip label={`${author.citedBy.toLocaleString()} citations`} />
-            {author.hIndex != null && <Chip label={`h-index ${author.hIndex}`} />}
+        <Card style={{ gap: space.lg }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
+            <Icon name="building.columns.fill" size={15} color={colors.secondary} />
+            <Text style={type.subhead}>{author.institution ?? profile?.school.name}</Text>
           </View>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.xs, marginTop: space.xs }}>
-            {author.topics.map((t) => <Chip key={t} label={t} />)}
+          <View style={{ flexDirection: "row", gap: space.lg }}>
+            <Stat value={compact(author.worksCount)} label="papers" />
+            <Stat value={compact(author.citedBy)} label="citations" />
+            {author.hIndex != null && <Stat value={String(author.hIndex)} label="h-index" />}
           </View>
-        </View>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+            {author.topics.map((t) => <Capsule key={t} label={t} />)}
+          </View>
+        </Card>
       )}
 
       {grant && (
-        <Card style={{ backgroundColor: colors.freshSoft, borderColor: colors.freshSoft, gap: space.xs }}>
-          <Text style={[type.label, { color: colors.fresh }]}>🟢 Money just landed · likely hiring</Text>
+        <Card style={{ gap: space.md }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
+            <Icon name="dollarsign.circle.fill" size={20} color={colors.green} />
+            <Text style={[type.headline, { color: colors.green }]}>Money just landed</Text>
+          </View>
           {isPro ? (
             <>
-              <Text style={type.h3}>
-                {formatMoney(grant.amount)} {grant.source} award · {grant.daysAgo} days ago
+              <Text style={[rounded, { fontSize: 56, lineHeight: 60, fontWeight: "800", color: colors.green, letterSpacing: -1 }]}>
+                {formatMoney(grant.amount) || "New award"}
               </Text>
-              <Text style={type.small}>{grant.title}</Text>
-              <Button title="View the award" variant="ghost" onPress={() => WebBrowser.openBrowserAsync(grant.url)} />
+              <Text style={type.headline}>{grant.source} award · {grant.daysAgo} days ago</Text>
+              <Text style={type.subhead}>{grant.title}</Text>
+              <View style={{ alignItems: "flex-start" }}>
+                <Button title="View Award" kind="tinted" size="small" icon="arrow.up.right" onPress={() => WebBrowser.openBrowserAsync(grant.url)} />
+              </View>
             </>
           ) : (
             <>
               <Text style={type.body}>This lab received a new {grant.source} grant recently. Labs with fresh funding often need help now.</Text>
-              <Button title="See amount & timing with Pro" variant="secondary" onPress={() => router.push("/paywall")} />
+              <Button title="See Amount and Timing" kind="prominent" icon="lock.open.fill" onPress={() => router.push("/paywall")} />
             </>
           )}
         </Card>
       )}
 
       {papers && (
-        <Section title="Recent papers: pick one to brief">
-          {papers.length === 0 && <Text style={type.body}>No recent articles found.</Text>}
+        <Group header="Recent papers" footer="Pick one to get a plain-English brief.">
+          {papers.length === 0 ? <Row title="No recent articles found." /> : null}
           {papers.map((p) => (
-            <Card key={p.id} style={{ gap: space.sm }}>
-              <Text style={type.h3}>{p.title}</Text>
-              <Text style={type.small}>
-                {[p.venue, p.year, `${p.citedBy} citations`].filter(Boolean).join(" · ")}
-                {!p.abstract && " · no abstract"}
-              </Text>
-              <Button
-                title="Brief me on this paper"
-                variant="secondary"
-                onPress={() =>
-                  router.push({
-                    pathname: "/brief",
-                    params: { workId: p.id, authorId: id, authorName: displayName, ...(grantNote ? { grantNote } : {}) },
-                  })
-                }
-              />
-            </Card>
+            <Row
+              key={p.id}
+              title={p.title}
+              subtitle={[p.venue, p.year, p.abstract ? null : "no abstract"].filter(Boolean).join(" · ")}
+              titleStyle={{ fontWeight: "600" }}
+              accessory="chevron"
+              onPress={() =>
+                router.push({
+                  pathname: "/brief",
+                  params: { workId: p.id, authorId: id, authorName: displayName, ...(grantNote ? { grantNote } : {}) },
+                })
+              }
+            />
           ))}
-        </Section>
+        </Group>
       )}
 
-      {author && <Button title="Find their email" variant="ghost" onPress={findEmail} />}
+      {author && (
+        <Group>
+          <Row icon="envelope.fill" title="Find Their Email" accessory="chevron" onPress={findEmail} />
+        </Group>
+      )}
     </Screen>
   );
 }

@@ -1,15 +1,30 @@
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { searchInstitutions } from "../lib/openalex";
 import { newId } from "../lib/storage";
 import type { Institution } from "../lib/types";
 import { useApp } from "../state/AppState";
-import { Button, Card, Chip, Field, Screen, Section } from "../ui/components";
-import { colors, space, type } from "../ui/theme";
+import { ACTION_BAR_SPACE, ActionBar, FieldRow, Group, Icon, Row, Screen, tap } from "../ui/components";
+import { colors, radius, space, type } from "../ui/theme";
 
 const YEARS = ["High school", "1st year", "2nd year", "3rd year", "4th year", "Grad"];
 const SUGGESTED = ["neuroscience", "cancer biology", "machine learning", "climate", "immunology", "robotics"];
+
+function Chip({ label, selected, onPress, icon }: { label: string; selected?: boolean; onPress: () => void; icon?: "plus" | "xmark" }) {
+  return (
+    <Pressable
+      onPress={() => { tap(); onPress(); }}
+      style={({ pressed }) => ({
+        flexDirection: "row", alignItems: "center", gap: 5, borderRadius: radius.pill, paddingHorizontal: 13, paddingVertical: 8,
+        backgroundColor: selected ? colors.tint : colors.fill, opacity: pressed ? 0.7 : 1,
+      })}
+    >
+      {icon && <Icon name={icon} size={11} color={selected ? "#FFFFFF" : colors.tint} weight="bold" />}
+      <Text style={{ fontSize: 15, fontWeight: "600", color: selected ? "#FFFFFF" : colors.label }}>{label}</Text>
+    </Pressable>
+  );
+}
 
 export default function Onboarding() {
   const { profile, setProfile } = useApp();
@@ -39,7 +54,8 @@ export default function Onboarding() {
     setInterestDraft("");
   };
 
-  const canSave = name.trim() && school && interests.length > 0;
+  const canSave = !!name.trim() && !!school && interests.length > 0;
+  const missing = !name.trim() ? "Add your name" : !school ? "Choose your university" : interests.length === 0 ? "Add at least one interest" : undefined;
 
   const save = async () => {
     if (!school) return;
@@ -58,71 +74,71 @@ export default function Onboarding() {
   };
 
   return (
-    <Screen>
-      <View style={{ gap: space.xs }}>
-        <Text style={type.title}>Get into a research lab.</Text>
-        <Text style={type.small}>We rank every active researcher at your school by fit, flag labs with fresh funding, and help you write an email professors actually answer.</Text>
-      </View>
-
-      <Field label="Your name" value={name} onChangeText={setName} placeholder="Alex Rivera" autoComplete="name" />
-
-      <Section title="Your university">
-        {school ? (
-          <Card style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-            <View style={{ flex: 1 }}>
-              <Text style={type.h3}>{school.name}</Text>
-              {!!school.city && <Text style={type.small}>{school.city}</Text>}
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <Screen bottomInset={ACTION_BAR_SPACE}>
+        <Group header="About you">
+          <FieldRow label="Name" value={name} onChangeText={setName} placeholder="Alex Rivera" autoComplete="name" />
+          <FieldRow label="Major" value={major} onChangeText={setMajor} placeholder="Biology" />
+          <View style={{ paddingHorizontal: space.lg, paddingVertical: space.md, gap: space.md }}>
+            <Text style={type.body}>Year</Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
+              {YEARS.map((y) => <Chip key={y} label={y} selected={year === y} onPress={() => setYear(y)} />)}
             </View>
-            <Chip label="Change" onPress={() => { setSchool(null); setSchoolQuery(""); }} />
-          </Card>
-        ) : (
-          <>
-            <Field label="Search" value={schoolQuery} onChangeText={setSchoolQuery} placeholder="e.g. University of Michigan" autoCorrect={false} />
-            {(searching ? schoolResults : []).map((s) => (
-              <Card key={s.id} onPress={() => setSchool(s)} style={{ paddingVertical: space.md }}>
-                <Text style={type.h3}>{s.name}</Text>
-                <Text style={type.small}>{[s.city, s.country].filter(Boolean).join(", ")}</Text>
-              </Card>
-            ))}
-          </>
-        )}
-      </Section>
+          </View>
+        </Group>
 
-      <Section title="Year">
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
-          {YEARS.map((y) => <Chip key={y} label={y} selected={year === y} onPress={() => setYear(y)} />)}
-        </View>
-      </Section>
+        <Group header="University">
+          {school ? (
+            <Row
+              icon="building.columns.fill"
+              title={school.name}
+              subtitle={[school.city, school.country].filter(Boolean).join(", ")}
+              accessory={<Text style={[type.body, { color: colors.tint }]}>Change</Text>}
+              onPress={() => { setSchool(null); setSchoolQuery(""); }}
+            />
+          ) : (
+            <View style={{ flexDirection: "row", alignItems: "center", paddingLeft: space.lg }}>
+              <Icon name="magnifyingglass" size={16} color={colors.secondary} />
+              <View style={{ flex: 1 }}>
+                <FieldRow value={schoolQuery} onChangeText={setSchoolQuery} placeholder="Search your university" autoCorrect={false} />
+              </View>
+            </View>
+          )}
+          {(searching ? schoolResults : []).map((s) => (
+            <Row
+              key={s.id}
+              icon="building.columns"
+              iconBg={colors.indigo}
+              title={s.name}
+              subtitle={[s.city, s.country].filter(Boolean).join(", ")}
+              onPress={() => setSchool(s)}
+            />
+          ))}
+        </Group>
 
-      <Field label="Major (or intended)" value={major} onChangeText={setMajor} placeholder="Biology" />
+        <Group header={`Research interests · ${interests.length} of 3`} footer="Pick up to three. Broad topics find more labs.">
+          {interests.length > 0 && (
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm, padding: space.lg }}>
+              {interests.map((i) => <Chip key={i} label={i} selected icon="xmark" onPress={() => setInterests(interests.filter((x) => x !== i))} />)}
+            </View>
+          )}
+          <FieldRow
+            value={interestDraft}
+            onChangeText={setInterestDraft}
+            onSubmitEditing={() => addInterest(interestDraft)}
+            placeholder="Add a topic and press return"
+            returnKeyType="done"
+          />
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm, padding: space.lg }}>
+            {SUGGESTED.filter((s) => !interests.includes(s)).map((s) => <Chip key={s} label={s} icon="plus" onPress={() => addInterest(s)} />)}
+          </View>
+        </Group>
 
-      <Section title={`Research interests (${interests.length}/3)`}>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
-          {interests.map((i) => <Chip key={i} label={`${i}  ✕`} selected onPress={() => setInterests(interests.filter((x) => x !== i))} />)}
-        </View>
-        <Field
-          label="Add an interest"
-          value={interestDraft}
-          onChangeText={setInterestDraft}
-          onSubmitEditing={() => addInterest(interestDraft)}
-          placeholder="type and press return"
-          returnKeyType="done"
-        />
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
-          {SUGGESTED.filter((s) => !interests.includes(s)).map((s) => <Chip key={s} label={`+ ${s}`} onPress={() => addInterest(s)} />)}
-        </View>
-      </Section>
-
-      <Field
-        label="Relevant experience (optional)"
-        value={experience}
-        onChangeText={setExperience}
-        placeholder="Courses, lab skills, projects. We never invent anything you don't write here."
-        multiline
-      />
-
-      <Button title="Find my labs" onPress={save} disabled={!canSave} loading={saving} />
-      <Text style={[type.small, { textAlign: "center", color: colors.muted }]}>Research data from OpenAlex, NIH RePORTER and NSF. All free and public.</Text>
-    </Screen>
+        <Group header="Experience (optional)" footer="Courses, lab skills, projects. Labmate never invents anything you don't write here.">
+          <FieldRow value={experience} onChangeText={setExperience} placeholder="e.g. Intro to Neuroscience, Python" multiline />
+        </Group>
+      </Screen>
+      <ActionBar title={missing ?? "Find My Labs"} icon={missing ? undefined : "sparkle.magnifyingglass"} onPress={save} disabled={!canSave} loading={saving} />
+    </View>
   );
 }
