@@ -14,13 +14,23 @@ Monetized with **RevenueCat**: 3 free briefs, then Labmate Pro (Research Season 
 
 Built by two students for RevenueCat Shipaton 2026 (Next Gen Award). MIT licensed.
 
+## Screenshots
+
+| Welcome | Lab Radar | Fresh funding | Labmate Pro |
+|---|---|---|---|
+| ![](docs/screenshots/welcome.png) | ![](docs/screenshots/radar.png) | ![](docs/screenshots/grant.png) | ![](docs/screenshots/paywall.png) |
+| **Paper brief** | **Understanding check** | **Lab** | **Outreach** |
+| ![](docs/screenshots/brief.png) | ![](docs/screenshots/quiz.png) | ![](docs/screenshots/lab.png) | ![](docs/screenshots/tracker.png) |
+
+Design: iOS 26 Liquid Glass, following Apple's Human Interface Guidelines (see [docs/DESIGN.md](docs/DESIGN.md)).
+
 ## Architecture
 
 ```
 app/     Expo SDK 57 + Expo Router (TypeScript)
   └─ calls NIH RePORTER + NSF directly (keyless)
   └─ calls server/ for AI (brief, draft) and OpenAlex (proxied)
-server/  Vercel functions → Claude (structured outputs) + OpenAlex proxy (holds the API key, caches)
+server/  Vercel functions → AI via OpenRouter (Qwen) or Claude, structured outputs + OpenAlex/NIH proxies (hold the keys, cache, rate limit)
 ```
 
 ## Run it
@@ -51,7 +61,7 @@ Without RevenueCat keys the paywall runs in a clearly labeled local demo mode.
 6. Optional: create a **Web Purchase Link** (Web Billing, Stripe) for the same offering and put its URL in `EXPO_PUBLIC_RC_WEB_PURCHASE_URL`. The app appends the user's app user ID so the parent's purchase unlocks the student's account. Check the link format in the dashboard.
 
 ## Deploy the server
-Import the repo in Vercel, set **Root Directory** to `server`, and add `ANTHROPIC_API_KEY`, `OPENALEX_API_KEY` (and optionally `LABMATE_APP_KEY`, matching `EXPO_PUBLIC_LABMATE_APP_KEY` in the app). Endpoints: `/api/brief`, `/api/draft`, `/api/openalex`.
+Import the repo in Vercel, set **Root Directory** to `server`, and add `OPENROUTER_API_KEY` (or `ANTHROPIC_API_KEY`), `OPENALEX_API_KEY` (**required**: OpenAlex blocks keyless search) and optionally `LABMATE_APP_KEY`, matching `EXPO_PUBLIC_LABMATE_APP_KEY` in the app. Endpoints: `/api/brief`, `/api/draft`, `/api/openalex`, `/api/nih`.
 
 ## Builds
 `app/eas.json` has `development` (dev client, Android APK), `preview` (installable APK) and `production` profiles:
