@@ -1,9 +1,10 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { Alert, Linking, Text, View } from "react-native";
+import { Alert, Text, View } from "react-native";
 import { fetchBrief, fetchDraft } from "../lib/api";
 import { getPaper } from "../lib/openalex";
-import { canSend, mailtoUrl, markSent, sentThisWeek } from "../lib/outreach";
+import { composeEmail } from "../lib/mail";
+import { canSend, markSent, sentThisWeek } from "../lib/outreach";
 import { FREE_BRIEFS, WEEKLY_SEND_CAP } from "../lib/config";
 import { cacheBrief, loadBriefsUsed, loadCachedBrief, loadOutreach, newId, upsertOutreach } from "../lib/storage";
 import type { Brief, Draft, Outreach, Paper } from "../lib/types";
@@ -109,7 +110,7 @@ export default function BriefScreen() {
       );
       return;
     }
-    await Linking.openURL(mailtoUrl(draft.subject, draft.body));
+    await composeEmail(draft.subject, draft.body);
     Alert.alert("Did you send it?", "We'll remind you to follow up in 7 days.", [
       { text: "Not yet", style: "cancel" },
       {
