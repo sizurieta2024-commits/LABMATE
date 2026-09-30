@@ -33,6 +33,16 @@ describe("openRouterStructured", () => {
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
+  it("retries on a different provider after bad output", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const bad = new Response(JSON.stringify({ provider: "Slowco", choices: [{ message: { content: "{   " } }] }));
+    const fetch = vi.fn().mockResolvedValueOnce(bad).mockResolvedValueOnce(reply('{"subject":"Hi"}'));
+    vi.stubGlobal("fetch", fetch);
+    await openRouterStructured(opts);
+    const second = JSON.parse(fetch.mock.calls[1][1].body);
+    expect(second.provider.ignore).toEqual(["Slowco"]);
+  });
+
   it("does not retry a bad key", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
     const fetch = vi.fn().mockResolvedValue(new Response("nope", { status: 401 }));

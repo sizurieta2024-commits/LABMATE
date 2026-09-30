@@ -56,20 +56,33 @@ function retryable(error: unknown): boolean {
  * each attempt is capped and retried once (OpenRouter re-routes the retry).
  */
 export async function openRouterStructured<S extends z.ZodType>(opts: Opts<S>): Promise<z.infer<S>> {
+  const avoid: string[] = [];
   for (let attempt = 1; ; attempt++) {
     try {
-      return await callOnce(opts);
+      return await callOnce(opts, avoid);
     } catch (error) {
+      // Some providers occasionally pad JSON mode with whitespace until the token
+      // limit; retry on a different one.
+      if (error instanceof ProviderOutputError) avoid.push(error.provider);
       console.warn(`OpenRouter attempt ${attempt} failed: ${error instanceof Error ? error.message : error}`);
       if (attempt >= ATTEMPTS || !retryable(error)) {
         if (error instanceof Error && error.name === "TimeoutError") throw new UpstreamError(504, "AI took too long");
-        throw error;
+        throw error instanceof ProviderOutputError ? error.inner : error;
       }
     }
   }
 }
 
-async function callOnce<S extends z.ZodType>(opts: Opts<S>): Promise<z.infer<S>> {
+class ProviderOutputError extends Error {
+  constructor(
+    public provider: string,
+    public inner: Error,
+  ) {
+    super(inner.message);
+  }
+}
+
+async function callOnce<S extends z.ZodType>(opts: Opts<S>, avoid: string[]): Promise<z.infer<S>> {
   const res = await fetch(URL, {
     method: "POST",
     signal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
@@ -89,9 +102,10 @@ async function callOnce<S extends z.ZodType>(opts: Opts<S>): Promise<z.infer<S>>
         json_schema: { name: "output", strict: true, schema: toStrictSchema(opts.schema) },
       },
       // Only providers that enforce the schema; fastest first (demo latency matters).
-      provider: { require_parameters: true, sort: "throughput" },
+      provider: { require_parameters: true, sort: "throughput", ...(avoid.length ? { ignore: avoid } : {}) },
       temperature: 0.4,
-      max_tokens: 4000,
+      // A brief is ~1.5K tokens; the cap stops a runaway response early.
+      max_tokens: 2500,
     }),
   });
 
@@ -99,16 +113,18 @@ async function callOnce<S extends z.ZodType>(opts: Opts<S>): Promise<z.infer<S>>
     const text = await res.text().catch(() => "");
     throw new UpstreamError(res.status, `OpenRouter ${res.status}: ${text.slice(0, 300)}`);
   }
-  const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+  const data = (await res.json()) as { provider?: string; choices?: { message?: { content?: string }; finish_reason?: string }[] };
   const content = data.choices?.[0]?.message?.content ?? "";
+  const bad = (detail: string) =>
+    new ProviderOutputError(data.provider ?? "unknown", opts.onBadOutput(`${detail} (provider ${data.provider}, finish ${data.choices?.[0]?.finish_reason})`));
 
   let raw: unknown;
   try {
     raw = JSON.parse(content.replace(/^```(?:json)?\s*|\s*```$/g, ""));
   } catch {
-    throw opts.onBadOutput(`Not JSON: ${content.slice(0, 200)}`);
+    throw bad(`Not JSON: ${content.trim().slice(0, 120)}`);
   }
   const parsed = opts.schema.safeParse(raw);
-  if (!parsed.success) throw opts.onBadOutput(parsed.error.message.slice(0, 300));
+  if (!parsed.success) throw bad(parsed.error.message.slice(0, 300));
   return parsed.data;
 }
