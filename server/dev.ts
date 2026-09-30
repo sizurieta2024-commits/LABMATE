@@ -37,6 +37,7 @@ createServer(async (req, res) => {
   res.end(Buffer.from(await response.arrayBuffer()));
 }).listen(port, "0.0.0.0", () => {
   console.log(`Labmate API on http://0.0.0.0:${port}`);
-  if (!process.env.ANTHROPIC_API_KEY) console.warn("⚠ ANTHROPIC_API_KEY not set: briefs and drafts will fail");
+  if (process.env.OPENROUTER_API_KEY) console.log(`AI via OpenRouter (${process.env.OPENROUTER_MODEL || "default Qwen"})`);
+  else if (!process.env.ANTHROPIC_API_KEY) console.warn("⚠ No ANTHROPIC_API_KEY or OPENROUTER_API_KEY: briefs and drafts will fail");
   if (!process.env.OPENALEX_API_KEY) console.warn("⚠ OPENALEX_API_KEY not set: OpenAlex allows ~10 searches/day without it");
 });

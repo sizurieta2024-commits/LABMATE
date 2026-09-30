@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { MissingKeyError, ModelOutputError, ModelRefusalError } from "./claude.js";
+import { UpstreamError } from "./openrouter.js";
 
 const CORS_HEADERS = {
   "access-control-allow-origin": "*",
@@ -55,6 +56,13 @@ export function handler<Req extends z.ZodType>(
       if (error instanceof MissingKeyError) return json({ error: error.message }, 500);
       if (error instanceof ModelRefusalError) return json({ error: "declined", detail: error.message }, 422);
       if (error instanceof ModelOutputError) return json({ error: "bad model output", detail: error.message }, 502);
+      if (error instanceof UpstreamError) {
+        console.error(error.message);
+        if (error.status === 429) return json({ error: "busy, try again shortly" }, 429);
+        if (error.status === 401 || error.status === 402) return json({ error: "server misconfigured" }, 500);
+        if (error.status === 504) return json({ error: "The AI took too long. Please try again." }, 504);
+        return json({ error: `upstream error ${error.status}` }, 502);
+      }
       if (error instanceof Anthropic.RateLimitError) return json({ error: "busy, try again shortly" }, 429);
       if (error instanceof Anthropic.AuthenticationError) return json({ error: "server misconfigured" }, 500);
       if (error instanceof Anthropic.APIError) return json({ error: `upstream error ${error.status}` }, 502);

@@ -28,6 +28,6 @@ Run lint, typecheck and tests for whichever package you touch before committing.
 ## Conventions
 - TypeScript strict. Keep network code in `lib/`, keep ranking and date logic pure and unit-tested (`app/src/lib/__tests__`).
 - Never commit secrets. `EXPO_PUBLIC_*` values ship inside the app bundle.
-- Claude calls: `server/lib/claude.ts`. Model `claude-opus-5-5`, `effort: "low"` for speed, structured outputs via `betaZodOutputFormat`, `fallbacks: "default"`. Schemas in `server/lib/schemas.ts`; the app mirrors the output types in `app/src/lib/types.ts`, so keep them in sync.
+- AI calls: `server/lib/claude.ts`. If `OPENROUTER_API_KEY` is set it routes to OpenRouter instead (`lib/openrouter.ts`, default `qwen/qwen3-235b-a22b-2507`, override with `OPENROUTER_MODEL`). `lib/normalize.ts` trims briefs to exactly 3 terms/questions/quiz items (the app's quiz gate needs 3) and shuffles quiz options. Claude path: Model `claude-opus-5-5`, `effort: "low"` for speed, structured outputs via `betaZodOutputFormat`, `fallbacks: "default"`. Schemas in `server/lib/schemas.ts`; the app mirrors the output types in `app/src/lib/types.ts`, so keep them in sync.
 - Product ethics are features: never let the model invent student experience; keep the quiz gate and the weekly send cap.
 - Expo changes fast: check versioned docs for SDK 57 rather than memory.

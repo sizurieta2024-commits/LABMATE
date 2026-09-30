@@ -14,6 +14,8 @@ const validBody = {
   student: { name: "Sam", school: "State University" },
 };
 
+const emptyBrief = { summary: "ok", whyItMatters: "", keyTerms: [], smartQuestions: [], quiz: [] };
+
 function post(body: unknown, headers: Record<string, string> = {}) {
   return new Request("http://x/api/brief", {
     method: "POST",
@@ -29,10 +31,10 @@ afterEach(() => {
 
 describe("brief endpoint", () => {
   it("returns the model output for a valid request", async () => {
-    vi.mocked(generateStructured).mockResolvedValue({ summary: "ok" });
+    vi.mocked(generateStructured).mockResolvedValue(emptyBrief);
     const res = await POST(post(validBody));
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ summary: "ok" });
+    expect(await res.json()).toEqual(emptyBrief);
     const call = vi.mocked(generateStructured).mock.calls[0][0];
     expect(call.prompt).toContain("Engines of analysis");
     expect(call.prompt).toContain("State University");
@@ -47,7 +49,7 @@ describe("brief endpoint", () => {
   it("enforces the shared app key when configured", async () => {
     process.env.LABMATE_APP_KEY = "secret";
     expect((await POST(post(validBody))).status).toBe(401);
-    vi.mocked(generateStructured).mockResolvedValue({});
+    vi.mocked(generateStructured).mockResolvedValue(emptyBrief);
     expect((await POST(post(validBody, { "x-labmate-key": "secret" }))).status).toBe(200);
   });
 

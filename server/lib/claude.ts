@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import type { z } from "zod";
+import { openRouterStructured } from "./openrouter.js";
 
 const MODEL = "claude-opus-5-5";
 
@@ -25,8 +26,12 @@ export async function generateStructured<S extends z.ZodType>(opts: {
   prompt: string;
   schema: S;
 }): Promise<z.infer<S>> {
+  // OpenRouter (cheap open models) wins when its key is set; otherwise Claude.
+  if (process.env.OPENROUTER_API_KEY) {
+    return openRouterStructured({ ...opts, onBadOutput: (detail) => new ModelOutputError(detail) });
+  }
   if (!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_AUTH_TOKEN) {
-    throw new MissingKeyError("Server is missing ANTHROPIC_API_KEY");
+    throw new MissingKeyError("Server is missing ANTHROPIC_API_KEY or OPENROUTER_API_KEY");
   }
   const response = await getClient().beta.messages.parse({
     model: MODEL,
