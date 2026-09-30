@@ -63,4 +63,24 @@ describe("openalex proxy", () => {
     expect((await get("path=/works")).status).toBe(401);
     expect((await get("path=/works", { "x-labmate-key": "k" })).status).toBe(200);
   });
+  it("retries once when OpenAlex has a hiccup (5xx or network error)", async () => {
+    fetchMock
+      .mockImplementationOnce(async () => new Response("busy", { status: 503 }))
+      .mockImplementationOnce(async () => new Response(JSON.stringify({ results: [1] }), { status: 200 }));
+    const res = await get("path=/works&search=retry-5xx");
+    expect(res.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    fetchMock.mockReset();
+    fetchMock
+      .mockImplementationOnce(async () => { throw new Error("socket"); })
+      .mockImplementationOnce(async () => new Response(JSON.stringify({ results: [] }), { status: 200 }));
+    expect((await get("path=/works&search=retry-net")).status).toBe(200);
+  });
+
+  it("does not retry client errors", async () => {
+    fetchMock.mockImplementation(async () => new Response("bad", { status: 400 }));
+    expect((await get("path=/works&search=bad")).status).toBe(400);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });
