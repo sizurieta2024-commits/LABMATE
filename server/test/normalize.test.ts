@@ -34,4 +34,16 @@ describe("normalizeBrief", () => {
   it("drops questions whose answer index is out of range", () => {
     expect(normalizeBrief({ ...base, quiz: [q(9), q(0)] }).quiz).toHaveLength(1);
   });
+  it("drops blank options and leaked field names, keeping the right answer", () => {
+    const leaky = { question: "Q", options: ["Right", " ", "Wrong", "answerIndex"], answerIndex: 0, explanation: "E" };
+    const b = normalizeBrief({ ...base, quiz: [leaky] }, () => 0);
+    expect(b.quiz[0].options).toHaveLength(2);
+    expect(b.quiz[0].options).not.toContain("answerIndex");
+    expect(b.quiz[0].options[b.quiz[0].answerIndex]).toBe("Right");
+  });
+
+  it("drops a question whose correct answer was itself junk", () => {
+    const junk = { question: "Q", options: ["a", "b", "explanation"], answerIndex: 2, explanation: "E" };
+    expect(normalizeBrief({ ...base, quiz: [junk] }).quiz).toHaveLength(0);
+  });
 });
