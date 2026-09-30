@@ -79,9 +79,12 @@ export async function searchInstitutions(query: string): Promise<Institution[]> 
 /** Recent works at an institution matching a research interest. */
 export async function searchWorksAtInstitution(institutionId: string, interest: string): Promise<RawWork[]> {
   const since = `${new Date().getFullYear() - 3}-01-01`;
+  // `search=` matches full text, which pulls in huge consensus papers that only
+  // mention the topic in passing. Titles and abstracts say what a paper is about.
+  // Commas separate OpenAlex filters, so strip them from the user's term.
+  const topic = interest.replace(/[,|:]/g, " ").trim();
   const params = (instFilter: string) => ({
-    search: interest,
-    filter: `${instFilter}:${institutionId},from_publication_date:${since}`,
+    filter: `${instFilter}:${institutionId},from_publication_date:${since},title_and_abstract.search:${topic}`,
     per_page: 200,
     select: "id,title,publication_year,publication_date,cited_by_count,authorships",
   });

@@ -4,6 +4,10 @@ import type { Researcher } from "./types";
 // Last author is usually the lab head (PI) in the sciences.
 const POSITION_WEIGHT = { last: 3, first: 1, middle: 0.5 } as const;
 
+// Consortium and consensus papers list hundreds of authors; being on one says
+// little about what a lab works on.
+export const MAX_AUTHORS = 30;
+
 type Tagged = { work: RawWork; interest: string };
 
 function atInstitution(inst: RawWork["authorships"][number]["institutions"][number], institutionId: string) {
@@ -28,6 +32,7 @@ export function rankResearchers(
   const thisYear = now.getFullYear();
 
   for (const { work, interest } of tagged) {
+    if (work.authorships.length > MAX_AUTHORS) continue;
     for (const a of work.authorships) {
       if (!a.author.id || !a.institutions.some((i) => atInstitution(i, institutionId))) continue;
       const id = shortId(a.author.id);
