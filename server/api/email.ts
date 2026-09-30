@@ -2,6 +2,7 @@
 // → { email, source } from the professor's own papers, or { email: null }.
 import { pickEmail, splitName, type EpmcResult } from "../lib/emailFinder.js";
 import { json, preflight, requireAppKey } from "../lib/http.js";
+import { allow, clientIp } from "../lib/ratelimit.js";
 
 const UPSTREAM = "https://www.ebi.ac.uk/europepmc/webservices/rest/search";
 const TTL_MS = 24 * 60 * 60 * 1000;
@@ -11,6 +12,7 @@ const cache = new Map<string, { at: number; body: unknown }>();
 export async function GET(request: Request): Promise<Response> {
   const denied = requireAppKey(request);
   if (denied) return denied;
+  if (!allow(clientIp(request), "email")) return json({ error: "Too many requests. Try again in a few minutes." }, 429);
 
   const url = new URL(request.url);
   const name = (url.searchParams.get("name") ?? "").trim();
@@ -32,13 +34,15 @@ export async function GET(request: Request): Promise<Response> {
   );
   upstream.searchParams.set("resultType", "core");
   upstream.searchParams.set("format", "json");
-  upstream.searchParams.set("pageSize", "100");
+  // 40 recent papers found the same address as 100 for 10 of 10 Michigan PIs (Sep 30), at about a third of the payload.
+  upstream.searchParams.set("pageSize", "40");
   upstream.searchParams.set("sort", "P_PDATE_D desc");
 
   let results: EpmcResult[];
   try {
     const res = await fetch(upstream, {
       headers: { "user-agent": "Labmate (Shipaton 2026)" },
+      signal: AbortSignal.timeout(8000),
     });
     if (!res.ok)
       return json({ error: `Europe PMC returned ${res.status}` }, 502);

@@ -3,6 +3,7 @@
 // a validated PI name instead of forwarding an arbitrary body.
 import { z } from "zod";
 import { json, preflight, requireAppKey } from "../lib/http.js";
+import { allow, clientIp } from "../lib/ratelimit.js";
 
 const UPSTREAM = "https://api.reporter.nih.gov/v2/projects/search";
 
@@ -15,6 +16,7 @@ const Input = z.object({
 export async function POST(request: Request): Promise<Response> {
   const denied = requireAppKey(request);
   if (denied) return denied;
+  if (!allow(clientIp(request), "nih")) return json({ error: "Too many requests. Try again in a few minutes." }, 429);
 
   const parsed = Input.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return json({ error: "invalid request" }, 400);
@@ -24,6 +26,7 @@ export async function POST(request: Request): Promise<Response> {
   try {
     res = await fetch(UPSTREAM, {
       method: "POST",
+      signal: AbortSignal.timeout(8000),
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         criteria: {

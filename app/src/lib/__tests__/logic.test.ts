@@ -106,5 +106,7 @@ describe("outreach rules", () => {
 
   it("builds a mailto url", () => {
     expect(mailtoUrl("Hi & bye", "a b")).toBe("mailto:?subject=Hi%20%26%20bye&body=a%20b");
+    expect(mailtoUrl("S", "B", "akil@umich.edu")).toBe("mailto:akil@umich.edu?subject=S&body=B");
+    expect(mailtoUrl("S", "B", "not an email")).toBe("mailto:?subject=S&body=B");
   });
 });
